@@ -20,6 +20,10 @@ polys = [x -> 1.0, x -> x, x -> (3 * x^2 - 1) / 2, x -> (5 * x^3 - 3 * x) / 2]
 @test tpbasis(2, 2) ==
       Index[Index(Int64[], Int64[]), Index([1], [1]), Index([1], [2]),
             Index([2], [1]), Index([2, 1], [1, 1]), Index([2], [2])]
+@test_throws(ArgumentError("recieved d < 1"),
+             tpbasis(0, 2),)
+@test_throws(ArgumentError("recieved negative J"),
+             tpbasis(1, -1))
 
 d = 2
 basis = Index[Index([1], [2]), Index([1, 2], [1, 3])]
@@ -52,3 +56,5 @@ fit!(pm, X, y)
 @test mae(pm.lm.β, β) < 1.0
 @test pm.lm.shape == 1e-3 + n / 2
 @test isapprox(std(pm), 2; atol=0.5)
+x = [0.2, 0.4]
+@test isapprox(pm(hcat(x))[1, 1], f(x); atol=1.0)
