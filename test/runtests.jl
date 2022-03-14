@@ -9,3 +9,7 @@ end
 @testset "BayesLM.jl" begin
     include("test_BayesLM.jl")
 end
+
+@testset "BayesPM.jl" begin
+    include("test_BayesPM.jl")
+end
