@@ -22,7 +22,7 @@ include("utils.jl")
 export BayesLM, std
 include("BayesLM.jl")
 
-export Index, tpbasis, expand
+export Index, tpbasis, expand, BayesPM
 include("BayesPM.jl")
 
 end

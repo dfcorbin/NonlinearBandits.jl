@@ -1,14 +1,14 @@
-mutable struct BayesLM{T<:AbstractFloat}
-    shape0::T
-    scale0::T
-    β0::Matrix{T}
-    Σ0::Hermitian{T,Matrix{T}}
-    Λ0::Hermitian{T,Matrix{T}}
-    shape::T
-    scale::T
-    β::Matrix{T}
-    Σ::Hermitian{T,Matrix{T}}
-    Λ::Hermitian{T,Matrix{T}}
+mutable struct BayesLM
+    shape0::Float64
+    scale0::Float64
+    β0::Matrix{Float64}
+    Σ0::Hermitian{Float64,Matrix{Float64}}
+    Λ0::Hermitian{Float64,Matrix{Float64}}
+    shape::Float64
+    scale::Float64
+    β::Matrix{Float64}
+    Σ::Hermitian{Float64,Matrix{Float64}}
+    Λ::Hermitian{Float64,Matrix{Float64}}
 end
 
 function sherman_morrison_inv(Ainv::AbstractMatrix, u::AbstractMatrix, v::AbstractMatrix)
@@ -25,13 +25,17 @@ function sherman_morrison_inv(Ainv::AbstractMatrix, u::AbstractMatrix, v::Abstra
 end
 
 """
-    BayesLM(d::Int; λ::AbstractFloat=1.0, shape0::AbsractFloat=1e-3,
-            scale0::AbstractFloat=1e-3)
-        
-Construct a Bayesian linear model with prior scaling `λ`.
+    BayesLM(d::Int; <keyword arguments>)        
+
+Construct a Bayesian linear model.
+
+# Arguments
+
+- `λ::tFloat64=1.0`: Prior scaling.
+- `shape0::Float64=1e-3`: Inverse-gamma prior shape hyperparameter.
+- `scale0::Float64=1e-3`: Inverse-gamma prior scale hyperparameter.
 """
-function BayesLM(d::Int; λ::AbstractFloat=1.0, shape0::AbstractFloat=1e-3,
-                 scale0::AbstractFloat=1e-3)
+function BayesLM(d::Int64; λ::Float64=1.0, shape0::Float64=1e-3, scale0::Float64=1e-3)
     if d <= 0 || shape0 <= 0 || scale0 <= 0
         throw(ArgumentError("d, shape0 and scale0 must be strictly positive"))
     end

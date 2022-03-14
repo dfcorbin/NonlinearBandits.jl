@@ -18,11 +18,11 @@ polys = [x -> 1.0, x -> x, x -> (3 * x^2 - 1) / 2, x -> (5 * x^3 - 3 * x) / 2]
 @test_throws(DimensionMismatch("dim and deg have mismatched length"),
              Index([1, 2], [1]))
 @test tpbasis(2, 2) ==
-      Index{Int64}[Index(Int64[], Int64[]), Index([1], [1]), Index([1], [2]),
-                   Index([2], [1]), Index([2, 1], [1, 1]), Index([2], [2])]
+      Index[Index(Int64[], Int64[]), Index([1], [1]), Index([1], [2]),
+            Index([2], [1]), Index([2, 1], [1, 1]), Index([2], [2])]
 
 d = 2
-basis = Index{Int64}[Index([1], [2]), Index([1, 2], [1, 3])]
+basis = Index[Index([1], [2]), Index([1, 2], [1, 3])]
 limits = repeat([-1.0 1.0], d, 1)
 X = repeat(rand(d, 1), 1, 2)
 p = repeat([polys[2 + 1](X[1, 1]); polys[1 + 1](X[1, 1]) * polys[3 + 1](X[2, 1]);;], 1, 2)
@@ -32,3 +32,23 @@ p = repeat([polys[2 + 1](X[1, 1]); polys[1 + 1](X[1, 1]) * polys[3 + 1](X[2, 1])
 @test_throws(ArgumentError("limits[:, 1] must be <= limits[:, 2]"),
              expand(X, basis, [-1 1; 1 -1]),)
 @test_throws(ArgumentError("J should be >= 0"), expand(X, basis, limits; J=-1))
+
+# Test polynomial regression
+d, n, J = 2, 50000, 3
+basis = tpbasis(d, J)
+nbas = length(basis)
+β = rand(Normal(0, 10), nbas, 1)
+
+function f(x)
+    z = reshape(x, (:, 1))
+    z = expand(z, basis, limits; J=J)
+    return (β' * z)[1, 1]
+end
+
+X, y = NonlinearBandits.gaussian_data(d, n, f; σ=2)
+pm = BayesPM(basis, limits; λ=200.0)
+fit!(pm, X, y)
+
+@test mae(pm.lm.β, β) < 0.5
+@test pm.lm.shape == 1e-3 + n / 2
+@test isapprox(std(pm), 2; atol=0.3)
