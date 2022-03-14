@@ -1,4 +1,4 @@
-mutable struct BayesLM{T}
+mutable struct BayesLM{T<:AbstractFloat}
     shape0::T
     scale0::T
     β0::Matrix{T}
