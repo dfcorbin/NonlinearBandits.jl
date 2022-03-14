@@ -49,6 +49,6 @@ X, y = NonlinearBandits.gaussian_data(d, n, f; σ=2)
 pm = BayesPM(basis, limits; λ=200.0)
 fit!(pm, X, y)
 
-@test mae(pm.lm.β, β) < 0.5
+@test mae(pm.lm.β, β) < 1.0
 @test pm.lm.shape == 1e-3 + n / 2
-@test isapprox(std(pm), 2; atol=0.3)
+@test isapprox(std(pm), 2; atol=0.5)

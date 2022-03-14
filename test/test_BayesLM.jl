@@ -24,10 +24,10 @@ fit!(lm, X, y)
 
 prediction_mae = mae(lm(X), mapslices(f, X; dims=1))
 β_mae = mae(lm.β, β)
-@test β_mae < 0.1
-@test prediction_mae < 0.1
+@test β_mae < 0.5
+@test prediction_mae < 0.5
 @test lm.shape == shape0 + n / 2
-@test isapprox(std(lm), σ; atol=0.3)
+@test isapprox(std(lm), σ; atol=0.5)
 
 # Check that sequential updates lead to the same results
 sequential_lm = BayesLM(d; shape0=shape0, scale0=scale0)
