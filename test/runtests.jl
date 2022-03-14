@@ -1,6 +1,11 @@
 using NonlinearBandits
 using Test
+using Distributions: Uniform, Normal
 
-@testset "NonlinearBandits.jl" begin
-    # Write your tests here.
+function mae(x1, x2)
+    return sum(abs.(x1 - x2)) / length(x1)
+end
+
+@testset "BayesLM.jl" begin
+    include("test_BayesLM.jl")
 end

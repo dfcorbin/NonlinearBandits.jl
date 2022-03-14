@@ -1,3 +1,4 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 NonlinearBandits = "bb118b12-63f8-4ffa-b45f-084c5f4f0409"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
