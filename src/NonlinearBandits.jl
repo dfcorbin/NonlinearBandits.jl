@@ -17,9 +17,12 @@ Update the parameters of `model`.
 """
 function fit!(model, X::AbstractMatrix, y::AbstractMatrix) end
 
+include("utils.jl")
+
 export BayesLM, std
 include("BayesLM.jl")
 
-include("utils.jl")
+export Index, tpbasis, expand, BayesPM
+include("BayesPM.jl")
 
 end

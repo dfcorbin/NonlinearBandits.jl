@@ -25,5 +25,19 @@ fit!(lm, X, y)
 xplt = 0:0.01:1
 xplt = reshape(xplt, (1, :))
 yplt = lm(xplt) # Call model object to make predictions
-plot(data_plt, xplt[1, :], yplt[1, :], label="Linear Model")
+plot(data_plt, xplt[1, :], yplt[1, :], label="Linear model")
+```
+
+# Bayesian Polynomial Model
+
+Using a [`BayesPM`](@ref) object, we can create a wrapper for the [`BayesLM`](@ref) class,
+which first applies a polynomial expansion to the features.
+
+```@example regression
+limits = repeat([0.0 1.0], d, 1) # Define hyperrectangular limits of the feature space
+basis = tpbasis(d, 3) # Use the degree-3 truncated polynomial tensor-product basis
+pm = BayesPM(basis, limits)
+fit!(pm, X, y)
+yplt = pm(xplt) 
+plot(data_plt, xplt[1, :], yplt[1, :], label="Polynoimal model")
 ```
