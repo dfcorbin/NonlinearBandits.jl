@@ -1,6 +1,3 @@
-# The code in this section has not been optimised, it has been kept simple for testing
-# purposes. I will implement a more optimised version if there is ever a need for it.
-
 mutable struct Partition
     limits::Matrix{Float64}
     regions::Vector{Matrix{Float64}}
@@ -80,13 +77,13 @@ function evidence(models::Vector{BayesPM}, shape0::Float64, scale0::Float64)
     return ev
 end
 
-function _conditional_degree_selection(
+function _conditional_degree_selection!(
     X::Matrix{Float64}, # Data to train new polynomial
     y::Matrix{Float64}, # Data to train new polynomial
     k::Int64, # Subregion to be replaced
-    d::Int64,
-    side::Int64, # Left subregion or right (used for cache location)
-    sub_limits::Matrix{Float64},
+    d::Int64, # Dimension index of model cache
+    lateral::Int64, # Lateral index of model cache
+    sub_limits::Matrix{Float64}, # Limits of the new polynomial
     Jmax::Int64,
     models::Vector{BayesPM},
     model_cache::Vector{Array{BayesPM,3}},
@@ -95,28 +92,27 @@ function _conditional_degree_selection(
     shape0::Float64,
     scale0::Float64,
 )
-    ev = fill(-Inf, Jmax + 1)
-    pms = Vector{BayesPM}(undef, Jmax + 1)
+    best_ev = -Inf
+    best_pm::Union{Nothing, BayesPM} = nothing
+    models_cp = deepcopy(models)
     for J in 0:Jmax
-        # No models are added to the cache when computing the intial model
-        # across the space (since there is no concept of left or right). This
-        # is accounted for by checking for an empty dictionary.
-        models_cp = deepcopy(models)
-        is_cache_empty = isempty(model_cache)
-        if is_cache_empty || !isassigned(model_cache[k], d, side, J + 1)
+        if !isassigned(model_cache[k], d, lateral, J + 1)
+            # Polynomial not found in cache, fit a new degree J polynmomial
+            # and store it.
             basis = basis_cache[J + 1]
             models_cp[k] = BayesPM(basis, sub_limits; λ=λ, shape0=shape0, scale0=scale0)
             fit!(models_cp[k], X, y)
-            if !is_cache_empty
-                model_cache[k][d, side, J + 1] = models_cp[k]
-            end
+            model_cache[k][d, lateral, J + 1] = models_cp[k]
         else
-            models_cp[k] = model_cache[k][d, side, J + 1]
+            # Polynomial found in cache.
+            models_cp[k] = model_cache[k][d, lateral, J + 1]
         end
-        pms[J + 1] = models_cp[k]
-        ev[J + 1] = evidence(models_cp, shape0, scale0)
+        ev = evidence(models_cp, shape0, scale0)
+        if ev > best_ev
+            best_pm = models_cp[k]
+        end
     end
-    return pms[argmax(ev)]
+    return best_pm
 end
 
 function auto_partitioned_bayes_pm(
@@ -129,36 +125,54 @@ function auto_partitioned_bayes_pm(
     shape0::Float64=1e-3,
     scale0::Float64=1e-3,
     tol::Float64=1e-4,
+    verbose::Bool=true,
 )
-    model_cache = Vector{Array{BayesPM,3}}(undef, 0)
-    basis_cache = [tpbasis(size(X, 1), J) for J in 0:Jmax]
     P = Partition(limits)
     idx = ones(Int64, size(X, 2))
+    model_cache = [Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1)]
+    basis_cache = [tpbasis(size(X, 1), J) for J in 0:Jmax]
     models = Vector{BayesPM}(undef, 1)
-    models[1] = _conditional_degree_selection(
+
+    # Set up the intial polynomial for the full space and clear the cache.
+    # We don't need to cache the inital entry as we have already accepted it.
+    # The cache indices supplied to _conditional_degree_selection! are just
+    # placeholders
+    models[1] = _conditional_degree_selection!(
         X, y, 1, 1, 1, limits, Jmax, models, model_cache, basis_cache, λ, shape0, scale0
     )
-    push!(model_cache, Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1))
+    model_cache[1] = Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1)
     ev = evidence(models, shape0, scale0)
 
     while length(models) < Kmax
-        K = length(models)
-        accepted = false
         count = 0
+        accepted = false
+        K = length(models)
         for k in randperm(K)
+            # Iterate over every subregion and test to see if any split
+            # improves the model evidence beyond the tolerance.
+
             count += 1
             best = Dict{String,Any}("ev" => ev + tol)
-            region_idx = idx .== k
-            Xs, ys = X[:, region_idx], y[:, region_idx]
+            models_cp = deepcopy(models)
+            push!(models_cp, models_cp[1])
+            region_mask = idx .== k
+            Xk, yk = X[:, region_mask], y[:, region_mask]
             for d in 1:size(X, 1)
-                print("\rRegion = $count/$K; Dimension = $d/$(size(X, 1)); Evidence = $ev")
+                # Region k is split in every dimension and two polynomials are fitted
+                # to the resulting subregions. The best details of the best dimensional
+                # split are stored in the dictionary `best`
+
+                if verbose
+                    msg = "\rRegion = $count/$K; Dimension = $d/$(size(X, 1)); Evidence = $ev"
+                    print(msg)
+                end
                 loc = sum(P.regions[k][d, :]) / 2
                 left_lims, right_lims = deepcopy(P.regions[k]), deepcopy(P.regions[k])
                 left_lims[d, 2], right_lims[d, 1] = loc, loc
-                left = Xs[d, :] .< loc
-                left_pm = _conditional_degree_selection(
-                    Xs[:, left],
-                    ys[:, left],
+                left_region_mask = Xk[d, :] .< loc
+                left_pm = _conditional_degree_selection!(
+                    Xk[:, left_region_mask],
+                    yk[:, left_region_mask],
                     k,
                     d,
                     1,
@@ -171,9 +185,9 @@ function auto_partitioned_bayes_pm(
                     shape0,
                     scale0,
                 )
-                right_pm = _conditional_degree_selection(
-                    Xs[:, .!left],
-                    ys[:, .!left],
+                right_pm = _conditional_degree_selection!(
+                    Xk[:, .!left_region_mask],
+                    yk[:, .!left_region_mask],
                     k,
                     d,
                     2,
@@ -186,33 +200,37 @@ function auto_partitioned_bayes_pm(
                     shape0,
                     scale0,
                 )
-                models_cp = deepcopy(models)
                 models_cp[k] = left_pm
-                push!(models_cp, right_pm)
+                models_cp[end] = right_pm
                 tmp_ev = evidence(models_cp, shape0, scale0)
                 if tmp_ev > best["ev"] >= ev + tol
                     accepted = true
                     best["ev"] = tmp_ev
                     best["d"] = d
-                    best["left"] = left
+                    best["left_region_mask"] = left_region_mask
                     best["left_pm"], best["right_pm"] = left_pm, right_pm
                 end
             end
             if accepted
-                ev = best["ev"]::Float64
+                # Update models and reset cache for k'th region. Add extra 
+                # cache entry for the additional region.
                 models[k] = best["left_pm"]::BayesPM
                 push!(models, best["right_pm"]::BayesPM)
                 model_cache[k] = Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1)
                 push!(model_cache, Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1))
+                
+                # Update the region indices
+                region_mask[best["left_region_mask"]::BitVector] .= 0
+                idx[region_mask] .= length(models)
+
                 split!(P, k, best["d"]::Int64)
-                region_idx[best["left"]::BitVector] .= 0
-                idx[region_idx] .= length(models)
+                ev = best["ev"]::Float64
                 break
             end
         end
-        if !accepted
-            break
+        if !accepted 
+            break # Every split has been rejected. Terminate search.
         end
     end
-    return models
+    return PartitionedBayesPM(P, models, shape0, scale0)
 end
