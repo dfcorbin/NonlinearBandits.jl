@@ -44,8 +44,33 @@ plot(data_plt, xplt[1, :], yplt[1, :], label="Polynoimal model")
 
 # Partitioned Bayesian Polynomial Model
 
+A more complex polynomial can be constructed by assigning low-degree polynomials
+to disjoint regions of a partition. Suppose we wanted to partition our 1-dimensional
+feature space into two disjoint regions, the partitioning api works as follows.
+
 ```@example regression
-ppm = auto_partitioned_bayes_pm(X, y, limits)
+P = Partition(limits)
+split!(P, 1, 1) # Split subregion 1 in dimension 1.
+println("Region 1: ", P.regions[1])
+println("Region 2: ", P.regions[2])
+```
+
+To construct the partitioned polynomial, given P:
+
+```@example regression
+ppm = PartitionedBayesPM(P, [3, 2])
+fit!(ppm, X, y)
 yplt = ppm(xplt)
+plot(data_plt, xplt[1, :], yplt[1, :], label="Partitioned model")
+```
+
+Often a good choice of partition is not easy to construct by hand. In this case,
+[`auto_partitioned_bayes_pm`](@ref) will perform a 1-step look ahead greedy search
+to build the partition automatically. The degrees for each polnomial are chosen
+automatically.
+
+```@example regression
+auto_ppm = auto_partitioned_bayes_pm(X, y, limits)
+yplt = auto_ppm(xplt)
 plot(data_plt, xplt[1, :], yplt[1, :], label="Partitioned model")
 ```

@@ -63,6 +63,30 @@ mutable struct PartitionedBayesPM
     scale0::Float64
 end
 
+function PartitionedBayesPM(
+    P::Partition,
+    Js::Vector{Int64};
+    λ::Float64=1.0,
+    shape0::Float64=1e-3,
+    scale0::Float64=1e-3,
+)
+    d = size(P.limits, 1)
+    basis = [tpbasis(d, J) for J in Js]
+    models = [
+        BayesPM(basis[i], P.regions[i]; λ=λ, shape0=shape0, scale0=scale0) for
+        i in 1:length(Js)
+    ]
+    return PartitionedBayesPM(P, models, shape0, scale0)
+end
+
+function fit!(ppm::PartitionedBayesPM, X::AbstractMatrix, y::AbstractMatrix)
+    idx = locate(ppm.P, X)
+    for k in unique(idx)
+        region_mask = idx .== k
+        fit!(ppm.models[k], X[:, region_mask], y[:, region_mask])
+    end
+end
+
 function evidence(models::Vector{BayesPM}, shape0::Float64, scale0::Float64)
     shape, scale, ev = shape0, scale0, 0.0
     for pm in models
