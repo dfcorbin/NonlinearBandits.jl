@@ -8,7 +8,7 @@ synthetic data to work with.
 using NonlinearBandits, Plots
 
 d, n = 1, 500
-f(x) = 10 * sin(10^x[1] * x[1])
+f(x) = 10 * sin(5^(2 * x[1]) * x[1])
 X, y = NonlinearBandits.gaussian_data(d, n, f)
 data_plt = plot(X[1, :], y[1, :], label=nothing, alpha=0.3, legend=:topleft, st=:scatter)
 ```
@@ -40,4 +40,12 @@ pm = BayesPM(basis, limits)
 fit!(pm, X, y)
 yplt = pm(xplt) 
 plot(data_plt, xplt[1, :], yplt[1, :], label="Polynoimal model")
+```
+
+# Partitioned Bayesian Polynomial Model
+
+```@example regression
+ppm = auto_partitioned_bayes_pm(X, y, limits)
+yplt = ppm(xplt)
+plot(data_plt, xplt[1, :], yplt[1, :], label="Partitioned model")
 ```

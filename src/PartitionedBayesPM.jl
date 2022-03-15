@@ -93,7 +93,7 @@ function _conditional_degree_selection!(
     scale0::Float64,
 )
     best_ev = -Inf
-    best_pm::Union{Nothing, BayesPM} = nothing
+    best_pm::Union{Nothing,BayesPM} = nothing
     models_cp = deepcopy(models)
     for J in 0:Jmax
         if !isassigned(model_cache[k], d, lateral, J + 1)
@@ -109,6 +109,7 @@ function _conditional_degree_selection!(
         end
         ev = evidence(models_cp, shape0, scale0)
         if ev > best_ev
+            best_ev = ev
             best_pm = models_cp[k]
         end
     end
@@ -116,8 +117,8 @@ function _conditional_degree_selection!(
 end
 
 function auto_partitioned_bayes_pm(
-    X::Matrix{Float64},
-    y::Matrix{Float64},
+    X::AbstractMatrix,
+    y::AbstractMatrix,
     limits::Matrix{Float64};
     Jmax::Int64=3,
     Kmax::Int64=200,
@@ -218,19 +219,29 @@ function auto_partitioned_bayes_pm(
                 push!(models, best["right_pm"]::BayesPM)
                 model_cache[k] = Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1)
                 push!(model_cache, Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1))
-                
+
                 # Update the region indices
-                region_mask[best["left_region_mask"]::BitVector] .= 0
-                idx[region_mask] .= length(models)
+                region_idx = @view idx[region_mask]
+                region_idx[.!best["left_region_mask"]::BitVector] .= length(models)
 
                 split!(P, k, best["d"]::Int64)
                 ev = best["ev"]::Float64
                 break
             end
         end
-        if !accepted 
+        if !accepted
             break # Every split has been rejected. Terminate search.
         end
     end
     return PartitionedBayesPM(P, models, shape0, scale0)
+end
+
+function (ppm::PartitionedBayesPM)(X::AbstractMatrix)
+    idx = locate(ppm.P, X)
+    y = zeros(1, length(idx))
+    for k in unique(idx)
+        region_mask = idx .== k
+        y[:, region_mask] = ppm.models[k](X[:, region_mask])
+    end
+    return y
 end

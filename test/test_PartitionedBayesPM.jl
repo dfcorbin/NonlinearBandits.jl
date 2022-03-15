@@ -1,8 +1,3 @@
-using NonlinearBandits
-using Test
-using Distributions: Uniform, Normal
-import Base: ==
-
 # Test partitioning
 d = 1
 limits = repeat([0.0 1.0], d, 1)
@@ -28,5 +23,8 @@ end
 
 n = 10000
 X, y = NonlinearBandits.gaussian_data(d, n, f; σ=0.5)
+pbpm = auto_partitioned_bayes_pm(X, y, limits, verbose=false);
 
-pbpm = auto_partitioned_bayes_pm(X, y, limits);
+@test pbpm.P.regions == P.regions
+@test mae(pbpm.models[1].lm.β, β[1]) < 0.1
+@test mae(pbpm.models[2].lm.β, β[2]) < 0.1
