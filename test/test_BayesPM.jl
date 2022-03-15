@@ -32,9 +32,9 @@ X = repeat(rand(d, 1), 1, 2)
 p = repeat([polys[2 + 1](X[1, 1]); polys[1 + 1](X[1, 1]) * polys[3 + 1](X[2, 1]);;], 1, 2)
 @test expand(X, basis, limits) ≈ p
 @test_throws(ArgumentError("invalid expansion limits, expected size (2, 2)"),
-             expand(X, basis, [-1 1]))
+             expand(X, basis, [-1.0 1.0]))
 @test_throws(ArgumentError("limits[:, 1] must be <= limits[:, 2]"),
-             expand(X, basis, [-1 1; 1 -1]),)
+             expand(X, basis, [-1.0 1.0; 1.0 -1.0]))
 @test_throws(ArgumentError("J should be >= 0"), expand(X, basis, limits; J=-1))
 
 # Test polynomial regression

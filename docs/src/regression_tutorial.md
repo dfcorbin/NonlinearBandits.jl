@@ -1,4 +1,4 @@
-# Tutorial
+# Model API
 
 This tutorial outlines some of the available models in
 [NonlinearBandits.jl](https://github.com/dfcorbin/NonlinearBandits.jl). First we generate some
@@ -23,7 +23,7 @@ lm = BayesLM(d)
 fit!(lm, X, y)
 
 xplt = 0:0.01:1
-xplt = reshape(xplt, (1, :))
+xplt = reshape(xplt, (d, :))
 yplt = lm(xplt) # Call model object to make predictions
 plot(data_plt, xplt[1, :], yplt[1, :], label="Linear model")
 ```

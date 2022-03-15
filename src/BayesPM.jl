@@ -81,6 +81,14 @@ function tpbasis(d::Int64, J::Int64)
     return basis
 end
 
+function check_limits(limits::Matrix{Float64})
+    if size(limits, 2) != 2
+        throw(ArgumentError("limits should have exactly 2 columns"))
+    elseif !all(limits[:, 1] .<= limits[:, 2])
+        throw(ArgumentError("limits[:, 1] must be <= limits[:, 2]"))
+    end
+end
+
 """
     expand(X::AbstractMatrix, basis::Vector{Index}, limits::AbstractMatrix;
            J::Union{Nothing,Int64}=nothing)
@@ -93,12 +101,11 @@ Expand the columns of X into a rescaled legendre polynomial basis.
 - `limits::AbstractMatrix`: Matrix with two columns defining the lower/upper limits of the space.
 - `J::Union{Nothing, Int64}=nothing`: The maximum degree of the basis. Inferred if not specified.
 """
-function expand(X::AbstractMatrix, basis::Vector{Index}, limits::AbstractMatrix;
+function expand(X::AbstractMatrix, basis::Vector{Index}, limits::Matrix{Float64};
                 J::Union{Nothing,Int64}=nothing)
-    if size(limits) != (size(X, 1), 2)
+    check_limits(limits)
+    if size(limits, 1) != size(X, 1)
         throw(ArgumentError("invalid expansion limits, expected size $((size(X, 1), 2))"))
-    elseif !all(limits[:, 1] .<= limits[:, 2])
-        throw(ArgumentError("limits[:, 1] must be <= limits[:, 2]"))
     elseif !isnothing(J) && J < 0
         throw(ArgumentError("J should be >= 0"))
     end
@@ -152,8 +159,9 @@ Construct a Bayesian linear model on polynomial features.
 - `shape0::Float64=1e-3`: Inverse-gamma prior shape hyperparameter.
 - `scale0::Float64=1e=3`: Inverse-gamma prior scale hyperparameter.
 """
-function BayesPM(basis::Vector{Index}, limits::AbstractMatrix; λ::Float64=1.0,
+function BayesPM(basis::Vector{Index}, limits::Matrix{Float64}; λ::Float64=1.0,
                  shape0::Float64=1e-3, scale0::Float64=1e-3)
+    check_limits(limits)
     lm = BayesLM(length(basis); λ=λ, shape0=shape0, scale0=scale0)
     J = maximum(udeg.(basis))
     return BayesPM(J, basis, limits, lm)
