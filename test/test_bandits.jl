@@ -14,10 +14,7 @@ X = contexts(n)
 @test all(-110 .<= rewards(X, 2 .* ones(Int64, n)) .<= 110)
 
 policy = RandomPolicy(length(mf))
-@test length(policy(X)) == n
-
 driver = StandardDriver(contexts, policy, rewards)
 X, a, r = driver(5)
-@test sort(unique(a)) == [1, 2]
 @test all(r[1, a .== 1] .> 50)
 @test all(r[1, a .== 2] .< -50)
