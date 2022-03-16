@@ -134,23 +134,35 @@ function _conditional_degree_selection!(
     lateral::Int64, # Lateral index of model cache
     sub_limits::Matrix{Float64}, # Limits of the new polynomial
     Jmax::Int64,
+    Pmax::Int64,
     models::Vector{BayesPM},
     model_cache::Vector{Array{BayesPM,3}},
     basis_cache::Vector{Vector{Index}},
     λ::Float64,
     shape0::Float64,
     scale0::Float64,
+    ratio::Float64,
 )
+    n = size(X, 2)
     best_ev = -Inf
     best_pm::Union{Nothing,BayesPM} = nothing
     models_cp = deepcopy(models)
     for J in 0:Jmax
+        if J > 0 && n < ratio * length(basis_cache[J + 1])
+            continue
+        end
         if !isassigned(model_cache[k], d, lateral, J + 1)
             # Polynomial not found in cache, fit a new degree J polynmomial
             # and store it.
             basis = basis_cache[J + 1]
-            models_cp[k] = BayesPM(basis, sub_limits; λ=λ, shape0=shape0, scale0=scale0)
-            fit!(models_cp[k], X, y)
+            Z = expand(X, basis, sub_limits; J=J)
+            idx = lasso_selection(Z, y, Pmax, true)
+            models_cp[k] = BayesPM(
+                basis[idx], sub_limits; λ=λ, shape0=shape0, scale0=scale0
+            )
+            if n > 0
+                fit!(models_cp[k].lm, Z[idx, :], y)
+            end
             model_cache[k][d, lateral, J + 1] = models_cp[k]
         else
             # Polynomial found in cache.
@@ -170,10 +182,12 @@ function auto_partitioned_bayes_pm(
     y::AbstractMatrix,
     limits::Matrix{Float64};
     Jmax::Int64=3,
+    Pmax::Int64=500,
     Kmax::Int64=200,
     λ::Float64=1.0,
     shape0::Float64=1e-3,
     scale0::Float64=1e-3,
+    ratio::Float64=1.0,
     tol::Float64=1e-4,
     verbose::Bool=true,
 )
@@ -200,7 +214,7 @@ function auto_partitioned_bayes_pm(
     # The cache indices supplied to _conditional_degree_selection! are just
     # placeholders
     models[1] = _conditional_degree_selection!(
-        X, y, 1, 1, 1, limits, Jmax, models, model_cache, basis_cache, λ, shape0, scale0
+        X, y, 1, 1, 1, limits, Jmax, Pmax, models, model_cache, basis_cache, λ, shape0, scale0, ratio
     )
     model_cache[1] = Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1)
     ev = evidence(models, shape0, scale0)
@@ -240,12 +254,14 @@ function auto_partitioned_bayes_pm(
                     1,
                     left_lims,
                     Jmax,
+                    Pmax,
                     models,
                     model_cache,
                     basis_cache,
                     λ,
                     shape0,
                     scale0,
+                    ratio,
                 )
                 right_pm = _conditional_degree_selection!(
                     Xk[:, .!left_region_mask],
@@ -255,12 +271,14 @@ function auto_partitioned_bayes_pm(
                     2,
                     right_lims,
                     Jmax,
+                    Pmax,
                     models,
                     model_cache,
                     basis_cache,
                     λ,
                     shape0,
                     scale0,
+                    ratio,
                 )
                 models_cp[k] = left_pm
                 models_cp[end] = right_pm
