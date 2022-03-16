@@ -1,4 +1,9 @@
-mutable struct BayesLM
+"""
+Abstract type for models using a Gaussian/normal-inverse-gamma conjugate prior.
+"""
+abstract type AbstractBayesianLM end
+
+mutable struct BayesLM <: AbstractBayesianLM
     shape0::Float64
     scale0::Float64
     β0::Matrix{Float64}
@@ -31,26 +36,33 @@ Construct a Bayesian linear model.
 
 # Arguments
 
-- `λ::tFloat64=1.0`: Prior scaling.
+- `λ::Float64=1.0`: Prior scaling.
 - `shape0::Float64=1e-3`: Inverse-gamma prior shape hyperparameter.
 - `scale0::Float64=1e-3`: Inverse-gamma prior scale hyperparameter.
 """
 function BayesLM(d::Int64; λ::Float64=1.0, shape0::Float64=1e-3, scale0::Float64=1e-3)
     if d <= 0 || shape0 <= 0 || scale0 <= 0
-        throw(ArgumentError("d, shape0 and scale0 must be strictly positive"))
+        msg = "d, shape0 and scale0 must be strictly positive"
+        throw(ArgumentError(msg))
     end
     β0, Σ0, Λ0 = zeros(d, 1), Hermitian(diagm(ones(d)) * λ), Hermitian(diagm(ones(d)) / λ)
     β, Σ, Λ = deepcopy(β0), deepcopy(Σ0), deepcopy(Λ0)
     return BayesLM(shape0, scale0, β0, Σ0, Λ0, shape0, scale0, β, Σ, Λ)
 end
 
-function fit!(lm::BayesLM, X::AbstractMatrix, y::AbstractMatrix)
+function check_regression_data(X::AbstractMatrix, y::AbstractMatrix)
     if size(y, 1) != 1
         throw(ArgumentError("y should have exactly 1 row"))
     elseif size(X, 2) != size(y, 2)
         throw(DimensionMismatch("X and y don't match in dimension 2"))
-    elseif size(lm.β, 1) != size(X, 1)
-        throw(DimensionMismatch("X does not have the same number of predictors as the model"))
+    end
+end
+
+function fit!(lm::BayesLM, X::AbstractMatrix, y::AbstractMatrix)
+    check_regression_data(X, y)
+    if size(lm.β, 1) != size(X, 1)
+        msg = "X does not have the same number of predictors as the model"
+        throw(DimensionMismatch(msg))
     end
     G = Hermitian(X * X')
     Λ = G + lm.Λ
@@ -61,21 +73,27 @@ function fit!(lm::BayesLM, X::AbstractMatrix, y::AbstractMatrix)
     return lm.shape, lm.scale, lm.β, lm.Σ, lm.Λ = shape, scale, β, Σ, Λ
 end
 
-"""
-    std(lm::BayesLM)
-
-Computed the posterior expected standard deviation from the model lm.
-"""
-function std(lm::BayesLM)
-    if lm.shape <= 1
-        throw(ArgumentError("expected variance is undefined for shape ≤ 1"))
-    end
-    return sqrt(lm.scale / (lm.shape - 1))
-end
-
 function (lm::BayesLM)(X::AbstractMatrix)
     if size(X, 1) != size(lm.β, 1)
-        throw(ArgumentError("X does not have the same number of predictors as the model"))
+        msg = "X does not have the same number of predictors as the model"
+        throw(DimensionMismatch(msg))
     end
     return lm.β' * X
+end
+
+"""
+    std(model)
+
+Computed the posterior expected standard deviation from the model.
+"""
+function std(model::AbstractBayesianLM)
+    shape, scale = shape_scale(model)
+    if shape <= 1
+        throw(ArgumentError("normal-inverse-gamma has undefined mean for shape ≤ 1"))
+    end
+    return sqrt(scale / (shape - 1))
+end
+
+function shape_scale(lm::BayesLM)
+    return lm.shape, lm.scale
 end

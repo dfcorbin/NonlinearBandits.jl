@@ -19,6 +19,11 @@ end
 Split the `k`'th subregion of `P` into equal halves in dimension `d`.
 """
 function split!(P::Partition, k::Int64, d::Int64)
+    if !(1 <= k <= length(P.regions))
+        throw(ArgumentError("P does not contain a $k'th subregion"))
+    elseif !(1 <= d <= size(P.limits, 1))
+        throw(ArgumentError("P is not $d-dimensional"))
+    end
     right = deepcopy(P.regions[k])
     loc = sum(right[d, :]) / 2
     P.regions[k][d, 2] = loc
@@ -70,6 +75,9 @@ function PartitionedBayesPM(
     shape0::Float64=1e-3,
     scale0::Float64=1e-3,
 )
+    if length(P.regions) != length(Js)
+        throw(ArgumentError("must supply a value of J for every region in P"))
+    end
     d = size(P.limits, 1)
     basis = [tpbasis(d, J) for J in Js]
     models = [
@@ -80,6 +88,7 @@ function PartitionedBayesPM(
 end
 
 function fit!(ppm::PartitionedBayesPM, X::AbstractMatrix, y::AbstractMatrix)
+    check_regression_data(X, y)
     idx = locate(ppm.P, X)
     for k in unique(idx)
         region_mask = idx .== k
@@ -152,6 +161,18 @@ function auto_partitioned_bayes_pm(
     tol::Float64=1e-4,
     verbose::Bool=true,
 )
+    check_regression_data(X, y)
+    check_limits(limits)
+    if size(X, 1) != size(limits, 1)
+        throw(ArgumentError("X and limits don't match in their first dimension"))
+    elseif Jmax < 0
+        throw(ArgumentError("Jmax must be non-negative"))
+    elseif Kmax <= 0
+        throw(ArgumentError("Kmax must be strictly positive"))
+    elseif tol < 0.0
+        throw(ArgumentError("tolerance must be non-negative"))
+    end
+
     P = Partition(limits)
     idx = ones(Int64, size(X, 2))
     model_cache = [Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1)]

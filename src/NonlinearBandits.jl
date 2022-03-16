@@ -20,7 +20,7 @@ function fit!(model, X::AbstractMatrix, y::AbstractMatrix) end
 
 include("utils.jl")
 
-export BayesLM, std
+export BayesLM, std, AbstractBayesianLM
 include("BayesLM.jl")
 
 export Index, tpbasis, expand, BayesPM

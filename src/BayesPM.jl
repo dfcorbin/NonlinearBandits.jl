@@ -1,7 +1,6 @@
-function legendre_next(x::Float64, j::Int64, p1::Float64, p0::Float64;
-                       tol::Float64=1e-4)
+function legendre_next(x::Float64, j::Int64, p1::Float64, p0::Float64; tol::Float64=1e-4)
     if x < -1.0 - tol || x > 1.0 + tol
-        throw(DomainError("x lies outside [- 1 - 1e-4, 1 + 1e-4]"))
+        throw(DomainError("x lies outside [- 1 - $tol, 1 + $tol]"))
     elseif tol < 0.0
         throw(ArgumentError("tol must be non-negative"))
     end
@@ -41,8 +40,9 @@ end
 
 udeg(index) = length(index.deg) == 0 ? 0 : maximum(index.deg)
 
-function fill_tpbasis!(d::Int64, J::Int64, basis::Vector{Index}, dim::Vector{Int64},
-                       deg::Vector{Int64})
+function _fill_tpbasis!(
+    d::Int64, J::Int64, basis::Vector{Index}, dim::Vector{Int64}, deg::Vector{Int64}
+)
     # Reached the bottom of the recursion. Append the basis.
     if d == 0 || J == 0
         push!(basis, Index(dim, deg))
@@ -56,7 +56,7 @@ function fill_tpbasis!(d::Int64, J::Int64, basis::Vector{Index}, dim::Vector{Int
             push!(dim1, d)
             push!(deg1, j)
         end
-        fill_tpbasis!(d - 1, J - j, basis, dim1, deg1)
+        _fill_tpbasis!(d - 1, J - j, basis, dim1, deg1)
     end
 end
 
@@ -77,7 +77,7 @@ function tpbasis(d::Int64, J::Int64)
     end
     basis = Vector{Index}(undef, 0)
     dim, deg = Int64[], Int64[]
-    fill_tpbasis!(d, J, basis, dim, deg)
+    _fill_tpbasis!(d, J, basis, dim, deg)
     return basis
 end
 
@@ -90,22 +90,26 @@ function check_limits(limits::Matrix{Float64})
 end
 
 """
-    expand(X::AbstractMatrix, basis::Vector{Index}, limits::AbstractMatrix;
+    expand(X::AbstractMatrix, basis::Vector{Index}, limits::Matrix{Float64};
            J::Union{Nothing,Int64}=nothing)
 
 Expand the columns of X into a rescaled legendre polynomial basis.
 
 # Arguments
 - `X::AbstractMatrix`: Matrix with observations stored as columns.
-- `basis::Vector{<:Index}`: Vector of monomial indices.
-- `limits::AbstractMatrix`: Matrix with two columns defining the lower/upper limits of the space.
+- `basis::Vector{Index}`: Vector of monomial indices.
+- `limits::Matrix{Float64}`: Matrix with two columns defining the lower/upper limits of the space.
 - `J::Union{Nothing, Int64}=nothing`: The maximum degree of the basis. Inferred if not specified.
 """
-function expand(X::AbstractMatrix, basis::Vector{Index}, limits::Matrix{Float64};
-                J::Union{Nothing,Int64}=nothing)
+function expand(
+    X::AbstractMatrix,
+    basis::Vector{Index},
+    limits::Matrix{Float64};
+    J::Union{Nothing,Int64}=nothing,
+)
     check_limits(limits)
     if size(limits, 1) != size(X, 1)
-        throw(ArgumentError("invalid expansion limits, expected size $((size(X, 1), 2))"))
+        throw(ArgumentError("X and limits don't match in their first dimension"))
     elseif !isnothing(J) && J < 0
         throw(ArgumentError("J should be >= 0"))
     end
@@ -139,7 +143,7 @@ function expand(X::AbstractMatrix, basis::Vector{Index}, limits::Matrix{Float64}
     return Y
 end
 
-mutable struct BayesPM
+mutable struct BayesPM <: AbstractBayesianLM
     J::Int64
     basis::Vector{Index}
     limits::Matrix{Float64}
@@ -147,20 +151,25 @@ mutable struct BayesPM
 end
 
 """
-    BayesPM(basis::Vector{Index}, limits::AbstractMatrix; λ::Float64=1.0,
+    BayesPM(basis::Vector{Index}, limits::Matrix{Float64}; λ::Float64=1.0,
             shape0::Float64=1e-3, scale0::Float64=1e-3) 
 
 Construct a Bayesian linear model on polynomial features.
 
 # Arguments
 - `basis::Vector{Index}`: Vector of monomial indices.
-- `limits::AbstractMatrix`: Matrix with two columns defining the lower/upper limits of the space.
+- `limits::Matrix{Float64}`: Matrix with two columns defining the lower/upper limits of the space.
 - `λ::Float64=1.0`: Prior covariance scale factor.
 - `shape0::Float64=1e-3`: Inverse-gamma prior shape hyperparameter.
 - `scale0::Float64=1e=3`: Inverse-gamma prior scale hyperparameter.
 """
-function BayesPM(basis::Vector{Index}, limits::Matrix{Float64}; λ::Float64=1.0,
-                 shape0::Float64=1e-3, scale0::Float64=1e-3)
+function BayesPM(
+    basis::Vector{Index},
+    limits::Matrix{Float64};
+    λ::Float64=1.0,
+    shape0::Float64=1e-3,
+    scale0::Float64=1e-3,
+)
     check_limits(limits)
     lm = BayesLM(length(basis); λ=λ, shape0=shape0, scale0=scale0)
     J = maximum(udeg.(basis))
@@ -168,6 +177,7 @@ function BayesPM(basis::Vector{Index}, limits::Matrix{Float64}; λ::Float64=1.0,
 end
 
 function fit!(pm::BayesPM, X::AbstractMatrix, y::AbstractMatrix)
+    check_regression_data(X, y)
     Z = expand(X, pm.basis, pm.limits; J=pm.J)
     return fit!(pm.lm, Z, y)
 end
@@ -177,4 +187,6 @@ function (pm::BayesPM)(X::AbstractMatrix)
     return pm.lm(Z)
 end
 
-std(pm::BayesPM) = std(pm.lm)
+function shape_scale(pm::BayesPM)
+    return pm.lm.shape, pm.lm.scale
+end
