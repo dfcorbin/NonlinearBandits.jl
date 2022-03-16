@@ -96,6 +96,22 @@ function fit!(ppm::PartitionedBayesPM, X::AbstractMatrix, y::AbstractMatrix)
     end
 end
 
+function lasso_selection(X::AbstractMatrix, y::AbstractMatrix, Pmax::Int64, intercept::Bool)
+    if size(X, 1) <= Pmax
+        return [1:size(X, 1)...]
+    end
+    X, Pmax = intercept ? (X[2:end, :], Pmax - 1) : (X, Pmax)
+    β = @suppress glmnet(X', y[1, :]; pmax=Pmax).betas[:, end]
+    indices = intercept ? [1] : Int64[]
+    @inbounds for j in 1:length(β)
+        if β[j] != 0.0
+            i = intercept ? j + 1 : j
+            push!(indices, i)
+        end
+    end
+    return indices
+end
+
 function evidence(models::Vector{BayesPM}, shape0::Float64, scale0::Float64)
     shape, scale, ev = shape0, scale0, 0.0
     for pm in models

@@ -2,6 +2,8 @@ module NonlinearBandits
 
 using LinearAlgebra: Hermitian, diagm, logdet
 using Distributions: Uniform, Normal, loggamma
+using Suppressor: @suppress
+using GLMNet: glmnet
 using Random: randperm
 
 export fit!
@@ -26,7 +28,8 @@ include("BayesLM.jl")
 export Index, tpbasis, expand, BayesPM
 include("BayesPM.jl")
 
-export Partition, split!, locate, PartitionedBayesPM, auto_partitioned_bayes_pm
+export Partition,
+    split!, locate, PartitionedBayesPM, auto_partitioned_bayes_pm, lasso_selection
 include("PartitionedBayesPM.jl")
 
 end
