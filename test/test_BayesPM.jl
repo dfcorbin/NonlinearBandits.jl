@@ -42,6 +42,10 @@ p = repeat([polys[2 + 1](X[1, 1]); polys[1 + 1](X[1, 1]) * polys[3 + 1](X[2, 1])
     expand(X, basis, [-1.0 1.0])
 )
 @test_throws(
+    ArgumentError("limits should have exactly 2 columns"),
+    expand(X, basis, [-1.0; 1.0;;])
+)
+@test_throws(
     ArgumentError("limits[:, 1] must be <= limits[:, 2]"),
     expand(X, basis, [-1.0 1.0; 1.0 -1.0])
 )

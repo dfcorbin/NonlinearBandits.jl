@@ -20,7 +20,7 @@ Split the `k`'th subregion of `P` into equal halves in dimension `d`.
 """
 function split!(P::Partition, k::Int64, d::Int64)
     if !(1 <= k <= length(P.regions))
-        throw(ArgumentError("P does not contain a $k'th subregion"))
+        throw(ArgumentError("P does not contain a subregion at index $k"))
     elseif !(1 <= d <= size(P.limits, 1))
         throw(ArgumentError("P is not $d-dimensional"))
     end
@@ -61,13 +61,43 @@ function locate(P::Partition, X::AbstractMatrix)
     return idx
 end
 
-mutable struct PartitionedBayesPM
+mutable struct PartitionedBayesPM <: AbstractBayesianLM
     P::Partition
     models::Vector{BayesPM}
     shape0::Float64
     scale0::Float64
+    shape::Float64
+    scale::Float64
 end
 
+function shape_scale(ppm::PartitionedBayesPM)
+    return ppm.shape, ppm.scale
+end
+
+function PartitionedBayesPM(
+    P::Partition, models::Vector{BayesPM}, shape0::Float64, scale0::Float64
+)
+    shape = shape0
+    scale = scale0
+    for pm in models
+        shape += pm.lm.shape - shape0
+        scale += pm.lm.scale - scale0
+    end
+    return PartitionedBayesPM(P, models, shape0, scale0, shape, scale)
+end
+
+"""
+    PartitionedBayesPM(P::Partition, Js::Vector{Int64}; <keyword arguments>)
+
+Contruct a partitioned polynomial model.
+
+# Arguments
+
+- `P::Partition`: A partition of the space.
+- `λ::Float64=1.0`: Prior scaling.
+- `shape0::Float64=1e-3`: Inverse-gamma prior shape hyperparameter.
+- `scale0::Float64=1e-3`: Inverse-gamma prior scale hyperparameter.
+"""
 function PartitionedBayesPM(
     P::Partition,
     Js::Vector{Int64};
@@ -84,7 +114,7 @@ function PartitionedBayesPM(
         BayesPM(basis[i], P.regions[i]; λ=λ, shape0=shape0, scale0=scale0) for
         i in 1:length(Js)
     ]
-    return PartitionedBayesPM(P, models, shape0, scale0)
+    return PartitionedBayesPM(P, models, shape0, scale0, shape0, scale0)
 end
 
 function fit!(ppm::PartitionedBayesPM, X::AbstractMatrix, y::AbstractMatrix)
@@ -92,10 +122,25 @@ function fit!(ppm::PartitionedBayesPM, X::AbstractMatrix, y::AbstractMatrix)
     idx = locate(ppm.P, X)
     for k in unique(idx)
         region_mask = idx .== k
+        ppm.scale -= ppm.models[k].lm.scale - ppm.scale0
         fit!(ppm.models[k], X[:, region_mask], y[:, region_mask])
+        ppm.scale += ppm.models[k].lm.scale - ppm.scale0
     end
+    return ppm.shape += size(X, 2) / 2
 end
 
+"""
+    lasso_selection(X::AbstractMatrix, y::AbstractMatrix, Pmax::Int64, intercept::Bool)
+
+Choose the first `Pmax` features introduced by a LASSO solution path.
+
+# Arguments
+
+- `X::AbstractMatrix`: A matrix with observations stored as columns.
+- `y::AbstractMatrix`: A matrix with 1 row of response variables. 
+- `Pmax::Int64`: The maximum number of predictors.
+- `intercept::Bool`: `true` if the first row of `X` are the intercept features
+"""
 function lasso_selection(X::AbstractMatrix, y::AbstractMatrix, Pmax::Int64, intercept::Bool)
     if size(X, 1) <= Pmax
         return [1:size(X, 1)...]
@@ -177,6 +222,23 @@ function _conditional_degree_selection!(
     return best_pm
 end
 
+"""
+    auto_partitioned_bayes_pm(X::AbstractMatrix, y::AbstractMatrix, limits::Matrix{Float64};
+                              <keyword arguments>)
+
+Perform a 1-step look ahead greedy search for a partitioned polynomial model.
+
+# Keyword Arguments
+- `Jmax::Int64=3`: The maximum degree of any polynomial model.
+- `Pmax::Int64=500`: The maximum number of features in a particular regions.
+- `Kmax::Int64=200`: The maximum number of regions
+- `λ::Float64=1.0`: Prior scaling.
+- `shape0::Float64=1e-3`: Inverse-gamma prior shape hyperparameter.
+- `scale0::Float64=1e-3`: Inverse-gamma prior scale hyperparameter.
+- `ratio::Float64=1.0`: Polynomial degrees are reduced until `size(X, 2) < ratio * length(tpbasis(d, J))`.
+- `tol::Float64=1e-4`: The required increase in the model evidence to accept a split.
+- `verbose::Bool=true`: Print details of the partition search.
+"""
 function auto_partitioned_bayes_pm(
     X::AbstractMatrix,
     y::AbstractMatrix,
@@ -214,7 +276,21 @@ function auto_partitioned_bayes_pm(
     # The cache indices supplied to _conditional_degree_selection! are just
     # placeholders
     models[1] = _conditional_degree_selection!(
-        X, y, 1, 1, 1, limits, Jmax, Pmax, models, model_cache, basis_cache, λ, shape0, scale0, ratio
+        X,
+        y,
+        1,
+        1,
+        1,
+        limits,
+        Jmax,
+        Pmax,
+        models,
+        model_cache,
+        basis_cache,
+        λ,
+        shape0,
+        scale0,
+        ratio,
     )
     model_cache[1] = Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1)
     ev = evidence(models, shape0, scale0)
