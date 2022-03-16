@@ -18,3 +18,7 @@ end
 @testset "PartitionedBayesPM.jl" begin
     include("test_PartitionedBayesPM.jl")
 end
+
+@testset "bandits.jl" begin
+    include("test_bandits.jl")
+end
