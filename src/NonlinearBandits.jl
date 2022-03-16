@@ -1,7 +1,10 @@
 module NonlinearBandits
 
-using LinearAlgebra: Hermitian, diagm
-using Distributions: Uniform, Normal
+using LinearAlgebra: Hermitian, diagm, logdet
+using Distributions: Uniform, Normal, loggamma
+using Suppressor: @suppress
+using GLMNet: glmnet
+using Random: randperm
 
 export fit!
 
@@ -19,10 +22,14 @@ function fit!(model, X::AbstractMatrix, y::AbstractMatrix) end
 
 include("utils.jl")
 
-export BayesLM, std
+export BayesLM, std, AbstractBayesianLM
 include("BayesLM.jl")
 
 export Index, tpbasis, expand, BayesPM
 include("BayesPM.jl")
+
+export Partition,
+    split!, locate, PartitionedBayesPM, auto_partitioned_bayes_pm, lasso_selection
+include("PartitionedBayesPM.jl")
 
 end
