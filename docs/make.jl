@@ -15,7 +15,13 @@ makedocs(;
         canonical="https://dfcorbin.github.io/NonlinearBandits.jl",
         assets=String[],
     ),
-    pages=["Tutorial" => ["Models" => "regression_tutorial.md"], "API" => "index.md"],
+    pages=[
+        "Tutorial" => [
+            "Contextual Bandits" => "bandit_tutorial.md",
+            "Models" => "regression_tutorial.md",
+        ],
+        "API" => "index.md",
+    ],
 )
 
 deploydocs(; repo="github.com/dfcorbin/NonlinearBandits.jl", devbranch="main")

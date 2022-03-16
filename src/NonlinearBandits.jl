@@ -32,7 +32,14 @@ export Partition,
     split!, locate, PartitionedBayesPM, auto_partitioned_bayes_pm, lasso_selection
 include("PartitionedBayesPM.jl")
 
-export AbstractContextSampler, AbstractRewardSampler, UniformContexts, GaussianRewards
+export AbstractContextSampler,
+    AbstractRewardSampler,
+    UniformContexts,
+    GaussianRewards,
+    AbstractPolicy,
+    RandomPolicy,
+    AbstractDriver,
+    StandardDriver
 include("bandits.jl")
 
 end
