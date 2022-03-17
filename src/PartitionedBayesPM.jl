@@ -222,6 +222,8 @@ function _conditional_degree_selection!(
     return best_pm
 end
 
+vol(limits::Matrix{Float64}) = prod(limits[:, 2] - limits[:, 1])
+
 """
     auto_partitioned_bayes_pm(X::AbstractMatrix, y::AbstractMatrix, limits::Matrix{Float64};
                               <keyword arguments>)
@@ -270,6 +272,7 @@ function auto_partitioned_bayes_pm(
     model_cache = [Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1)]
     basis_cache = [tpbasis(size(X, 1), J) for J in 0:Jmax]
     models = Vector{BayesPM}(undef, 1)
+    space_vol = vol(limits)
 
     # Set up the intial polynomial for the full space and clear the cache.
     # We don't need to cache the inital entry as we have already accepted it.
@@ -334,7 +337,7 @@ function auto_partitioned_bayes_pm(
                     models,
                     model_cache,
                     basis_cache,
-                    λ,
+                    λ * vol(left_lims) / space_vol,
                     shape0,
                     scale0,
                     ratio,
@@ -351,7 +354,7 @@ function auto_partitioned_bayes_pm(
                     models,
                     model_cache,
                     basis_cache,
-                    λ,
+                    λ * vol(right_lims) / space_vol,
                     shape0,
                     scale0,
                     ratio,

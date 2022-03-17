@@ -22,3 +22,7 @@ end
 @testset "bandits.jl" begin
     include("test_bandits.jl")
 end
+
+@testset "PolynomialThompsonSampling." begin
+    include("test_PolynomialThompsonSampling.jl")
+end

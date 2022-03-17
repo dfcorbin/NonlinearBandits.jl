@@ -1,12 +1,12 @@
 module NonlinearBandits
 
 using LinearAlgebra: Hermitian, diagm, logdet
-using Distributions: Uniform, Normal, loggamma
+using Distributions: Uniform, Normal, loggamma, InverseGamma, MvNormal
 using Suppressor: @suppress
 using GLMNet: glmnet
 using Random: randperm
 
-export fit!
+export fit!, update!
 
 """
     fit!(model, X::AbstractMatrix, y::AbstractMatrix)
@@ -39,7 +39,19 @@ export AbstractContextSampler,
     AbstractPolicy,
     RandomPolicy,
     AbstractDriver,
-    StandardDriver
+    StandardDriver,
+    BanditDataset,
+    arm_data,
+    add_data!,
+    run!,
+    FunctionalRegret
 include("bandits.jl")
+
+function update!(
+    pol::AbstractPolicy, X::AbstractMatrix, a::AbstractVector{Int64}, r::AbstractMatrix
+) end
+
+export PolynomialThompsonSampling
+include("PolynomialThompsonSampling.jl")
 
 end

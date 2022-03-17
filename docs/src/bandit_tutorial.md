@@ -38,7 +38,7 @@ and outputs the reward observed for each action. Gaussian distributed rewards ca
 be obtained by the following...
 
 ```@example bandits 
-mf = (x -> -100, x -> 0,  x -> 100) # rewards independent of contexts in this case
+mf = (x -> -100, x -> 0,  x -> 100) # mean rewards independent of contexts in this case
 rsampler = GaussianRewards(mf)
 
 X = csampler(2) # Generate contexts
