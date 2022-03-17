@@ -1,20 +1,11 @@
-using Test, NonlinearBandits
-d = 5
-n = 10
-mf = (x -> 100.0, x -> -100.0)
-
-contexts = UniformContexts(repeat([10.0 11.0], d, 1))
-rewards = GaussianRewards(mf; σ=1.0)
-
-X = contexts(n)
-
-@test size(X) == (d, n)
-@test all(10 .<= X .<= 11)
-@test all(90 .<= rewards(X, ones(Int64, n)) .<= 110)
-@test all(-110 .<= rewards(X, 2 .* ones(Int64, n)) .<= 110)
-
-policy = RandomPolicy(length(mf))
-driver = StandardDriver(contexts, policy, rewards)
-X, a, r = driver(5)
-@test all(r[1, a .== 1] .> 50)
-@test all(r[1, a .== 2] .< -50)
+d = 2
+data = BanditDataset(d)
+X = rand(2, 2)
+a = [1, 2]
+r = rand(1, 2)
+add_data!(data, X, a, r)
+@test data.X == X
+@test data.a == a
+@test data.r == r
+@test arm_data(data, 1) == (X[:, 1:1], r[:, 1:1])
+@test arm_data(data, 2) == (X[:, 2:2], r[:, 2:2])

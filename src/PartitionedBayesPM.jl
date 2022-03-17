@@ -1,16 +1,16 @@
-mutable struct Partition
-    limits::Matrix{Float64}
-    regions::Vector{Matrix{Float64}}
-end
-
 """
     Partition(limits::Matrix{Float64})
 
 Construct an object capable of storing a hyperrectangular partition.
 """
-function Partition(limits::Matrix{Float64})
-    check_limits(limits)
-    return Partition(deepcopy(limits), deepcopy([limits]))
+mutable struct Partition
+    limits::Matrix{Float64}
+    regions::Vector{Matrix{Float64}}
+
+    function Partition(limits::Matrix{Float64})
+        check_limits(limits)
+        return new(deepcopy(limits), deepcopy([limits]))
+    end
 end
 
 """
@@ -31,7 +31,12 @@ function split!(P::Partition, k::Int64, d::Int64)
     return push!(P.regions, right)
 end
 
-function locate(P::Partition, X::AbstractMatrix)
+"""
+    locate(P::Partition, X::AbstractMatrix{Float64})
+
+Return a vector of integers giving the region index for each column of `X`.
+"""
+function locate(P::Partition, X::AbstractMatrix{Float64})
     d, n = size(X)
     if d != size(P.limits, 1)
         throw(DimensionMismatch("P does match the dimension of X"))
@@ -68,22 +73,22 @@ mutable struct PartitionedBayesPM <: AbstractBayesianLM
     scale0::Float64
     shape::Float64
     scale::Float64
+
+    function PartitionedBayesPM(
+        P::Partition, models::Vector{BayesPM}, shape0::Float64, scale0::Float64
+    )
+        shape = shape0
+        scale = scale0
+        for pm in models
+            shape += pm.lm.shape - shape0
+            scale += pm.lm.scale - scale0
+        end
+        return new(P, models, shape0, scale0, shape, scale)
+    end
 end
 
 function shape_scale(ppm::PartitionedBayesPM)
     return ppm.shape, ppm.scale
-end
-
-function PartitionedBayesPM(
-    P::Partition, models::Vector{BayesPM}, shape0::Float64, scale0::Float64
-)
-    shape = shape0
-    scale = scale0
-    for pm in models
-        shape += pm.lm.shape - shape0
-        scale += pm.lm.scale - scale0
-    end
-    return PartitionedBayesPM(P, models, shape0, scale0, shape, scale)
 end
 
 """
@@ -114,7 +119,7 @@ function PartitionedBayesPM(
         BayesPM(basis[i], P.regions[i]; λ=λ, shape0=shape0, scale0=scale0) for
         i in 1:length(Js)
     ]
-    return PartitionedBayesPM(P, models, shape0, scale0, shape0, scale0)
+    return PartitionedBayesPM(P, models, shape0, scale0)
 end
 
 function fit!(ppm::PartitionedBayesPM, X::AbstractMatrix, y::AbstractMatrix)
@@ -225,7 +230,7 @@ end
 vol(limits::Matrix{Float64}) = prod(limits[:, 2] - limits[:, 1])
 
 """
-    auto_partitioned_bayes_pm(X::AbstractMatrix, y::AbstractMatrix, limits::Matrix{Float64};
+    PartitionedBayesPM(X::AbstractMatrix, y::AbstractMatrix, limits::Matrix{Float64};
                               <keyword arguments>)
 
 Perform a 1-step look ahead greedy search for a partitioned polynomial model.
@@ -241,7 +246,7 @@ Perform a 1-step look ahead greedy search for a partitioned polynomial model.
 - `tol::Float64=1e-4`: The required increase in the model evidence to accept a split.
 - `verbose::Bool=true`: Print details of the partition search.
 """
-function auto_partitioned_bayes_pm(
+function PartitionedBayesPM(
     X::AbstractMatrix,
     y::AbstractMatrix,
     limits::Matrix{Float64};

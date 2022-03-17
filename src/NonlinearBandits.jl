@@ -1,57 +1,83 @@
 module NonlinearBandits
 
-using LinearAlgebra: Hermitian, diagm, logdet
 using Distributions: Uniform, Normal, loggamma, InverseGamma, MvNormal
-using Suppressor: @suppress
 using GLMNet: glmnet
+using LinearAlgebra: Hermitian, diagm, logdet
 using Random: randperm
+using Suppressor: @suppress
 
-export fit!, update!
+include("utils.jl")
+include("BayesLM.jl")
+include("BayesPM.jl")
+include("PartitionedBayesPM.jl")
+include("bandits.jl")
+include("contexts.jl")
+include("rewards.jl")
+include("metrics.jl")
+include("drivers.jl")
+include("PolynomialThompsonSampling.jl")
 
 """
-    fit!(model, X::AbstractMatrix, y::AbstractMatrix)
+    fit!(model, X::AbstractMatrix{Float64}, y::AbstractMatrix{Float64})
 
 Update the parameters of `model`.
 
 # Arguments
 
-- `X::AbstractMatrix`: A matrix with observations stored as columns.
-- `y::AbstractMatrix`: A matrix with 1 row of response variables. 
+- `X::AbstractMatrix{Float64}`: A matrix with observations stored as columns.
+- `y::AbstractMatrix{Float64}`: A matrix with 1 row of response variables. 
 """
 function fit!(model, X::AbstractMatrix, y::AbstractMatrix) end
 
-include("utils.jl")
+"""
+    shape_scale(model::AbstractBayesianLM)
 
-export BayesLM, std, AbstractBayesianLM
-include("BayesLM.jl")
+Return the shape/scale of model.
+"""
+function shape_scale(model::AbstractBayesianLM) end
 
-export Index, tpbasis, expand, BayesPM
-include("BayesPM.jl")
+"""
+    update!(pol::AbstractPolicy, X::AbstractMatrix{Float64}, a::AbstractVector{Int64}, 
+            r::AbstractMatrix{Float64}) 
 
-export Partition,
-    split!, locate, PartitionedBayesPM, auto_partitioned_bayes_pm, lasso_selection
-include("PartitionedBayesPM.jl")
-
-export AbstractContextSampler,
-    AbstractRewardSampler,
-    UniformContexts,
-    GaussianRewards,
-    AbstractPolicy,
-    RandomPolicy,
-    AbstractDriver,
-    StandardDriver,
-    BanditDataset,
-    arm_data,
-    add_data!,
-    run!,
-    FunctionalRegret
-include("bandits.jl")
-
+Update `pol` with a batch of data.
+"""
 function update!(
-    pol::AbstractPolicy, X::AbstractMatrix, a::AbstractVector{Int64}, r::AbstractMatrix
+    pol::AbstractPolicy,
+    X::AbstractMatrix{Float64},
+    a::AbstractVector{Int64},
+    r::AbstractMatrix{Float64},
 ) end
 
-export PolynomialThompsonSampling
-include("PolynomialThompsonSampling.jl")
+export AbstractBayesianLM,
+    AbstractContextSampler,
+    AbstractDriver,
+    AbstractMetric,
+    AbstractPolicy,
+    AbstractRewardSampler,
+    add_data!,
+    arm_data,
+    BanditDataset,
+    BayesLM,
+    BayesPM,
+    expand,
+    fit!,
+    FunctionalRegret,
+    GaussianRewards,
+    Index,
+    lasso_selection,
+    locate,
+    Partition,
+    PartitionedBayesPM,
+    PolynomialThompsonSampling,
+    RandomPolicy,
+    run!,
+    shape_scale,
+    split!,
+    StandardDriver,
+    std,
+    tpbasis,
+    UniformContexts,
+    update!
 
 end

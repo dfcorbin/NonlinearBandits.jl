@@ -23,6 +23,22 @@ end
     include("test_bandits.jl")
 end
 
-@testset "PolynomialThompsonSampling." begin
-    include("test_PolynomialThompsonSampling.jl")
+@testset "contexts.jl" begin
+    include("test_contexts.jl")
 end
+
+@testset "rewards.jl" begin
+    include("test_rewards.jl")
+end
+
+@testset "metrics.jl" begin
+    include("test_metrics.jl")
+end
+
+@testset "drivers.jl" begin
+    include("test_drivers.jl")
+end
+
+# @testset "PolynomialThompsonSampling." begin
+#     include("test_PolynomialThompsonSampling.jl")
+# end

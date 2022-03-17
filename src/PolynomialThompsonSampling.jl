@@ -110,7 +110,7 @@ function update!(
     if pol.steps % pol.retrain_freq == 0 || pol.steps == pol.initial_steps
         for a in 1:length(pol.arms)
             Xa, ra = arm_data(pol.data, a)
-            pol.arms[a] = auto_partitioned_bayes_pm(
+            pol.arms[a] = PartitionedBayesPM(
                 Xa,
                 ra,
                 pol.limits;
