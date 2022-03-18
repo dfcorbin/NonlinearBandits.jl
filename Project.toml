@@ -4,7 +4,9 @@ authors = ["Doug Corbin <dfcorbin98@gmail.com> and contributors"]
 version = "0.1.0"
 
 [deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 GLMNet = "8d5ece8b-de18-5317-b113-243142960cc6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
@@ -13,9 +15,9 @@ Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 
 [compat]
 Distributions = "0.25"
+GLMNet = "0.7"
 SpecialFunctions = "2"
 Suppressor = "0.2"
-GLMNet = "0.7"
 julia = "1.7"
 
 [extras]

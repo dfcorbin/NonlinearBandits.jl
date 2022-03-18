@@ -1,5 +1,7 @@
 module NonlinearBandits
 
+using CUDA
+using Flux: relu, Chain, Dense
 using Distributions: Uniform, Normal, loggamma, InverseGamma, MvNormal
 using GLMNet: glmnet
 using LinearAlgebra: Hermitian, diagm, logdet
@@ -17,6 +19,7 @@ include("metrics.jl")
 include("drivers.jl")
 include("RandomPolicy.jl")
 include("PolynomialThompsonSampling.jl")
+include("NeuralLinear.jl")
 
 """
     fit!(model, X::AbstractMatrix{Float64}, y::AbstractMatrix{Float64})
@@ -68,6 +71,7 @@ export AbstractBayesianLM,
     Index,
     lasso_selection,
     locate,
+    NeuralEncoder,
     Partition,
     PartitionedBayesPM,
     PolynomialThompsonSampling,
@@ -80,15 +84,5 @@ export AbstractBayesianLM,
     tpbasis,
     UniformContexts,
     update!
-
-export AbstractContextSampler,
-    AbstractRewardSampler,
-    UniformContexts,
-    GaussianRewards,
-    AbstractPolicy,
-    RandomPolicy,
-    AbstractDriver,
-    StandardDriver
-include("bandits.jl")
 
 end

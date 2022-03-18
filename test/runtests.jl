@@ -42,3 +42,7 @@ end
 @testset "PolynomialThompsonSampling." begin
     include("test_PolynomialThompsonSampling.jl")
 end
+
+@testset "NeuralLinear.jl" begin
+    include("test_NeuralLinear.jl")
+end
