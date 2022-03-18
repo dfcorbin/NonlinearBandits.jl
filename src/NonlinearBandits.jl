@@ -81,4 +81,14 @@ export AbstractBayesianLM,
     UniformContexts,
     update!
 
+export AbstractContextSampler,
+    AbstractRewardSampler,
+    UniformContexts,
+    GaussianRewards,
+    AbstractPolicy,
+    RandomPolicy,
+    AbstractDriver,
+    StandardDriver
+include("bandits.jl")
+
 end
