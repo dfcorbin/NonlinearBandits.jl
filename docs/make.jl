@@ -17,8 +17,8 @@ makedocs(;
     ),
     pages=[
         "Introduction" => "index.md",
-        "Tutorial" => ["Partitioned Polynomials" => "ppm_tutorial.md"],
-        "API" => ["Bandits" => ["bandits_api.md"], "Models" => ["model_api.md"]],
+        "Tutorials" => ["Bandits Tutorial" => "bandit_tutorial.md"],
+        "API" => ["Bandits" => "bandits_api.md", "Models" => "model_api.md"],
     ],
 )
 

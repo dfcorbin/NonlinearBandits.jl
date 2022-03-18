@@ -231,7 +231,7 @@ vol(limits::Matrix{Float64}) = prod(limits[:, 2] - limits[:, 1])
 
 """
     PartitionedBayesPM(X::AbstractMatrix, y::AbstractMatrix, limits::Matrix{Float64};
-                              <keyword arguments>)
+                       <keyword arguments>)
 
 Perform a 1-step look ahead greedy search for a partitioned polynomial model.
 

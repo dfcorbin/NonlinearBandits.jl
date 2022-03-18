@@ -144,8 +144,7 @@ function expand(
 end
 
 """
-    BayesPM(basis::Vector{Index}, limits::Matrix{Float64}; λ::Float64=1.0,
-            shape0::Float64=1e-3, scale0::Float64=1e-3) 
+    BayesPM(basis::Vector{Index}, limits::Matrix{Float64}; <keyword arguments>) 
 
 Construct a Bayesian linear model on polynomial features.
 

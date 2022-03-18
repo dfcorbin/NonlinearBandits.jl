@@ -28,7 +28,7 @@ model the expected rewards.
 """
 mutable struct PolynomialThompsonSampling <: AbstractPolicy
     t::Int64
-    steps::Int64
+    batches::Int64
     data::BanditDataset
     arms::Vector{PartitionedBayesPM}
     initial_batches::Int64
@@ -92,8 +92,8 @@ function (pol::PolynomialThompsonSampling)(X::AbstractMatrix{Float64})
     num_arms = length(pol.arms)
     actions = zeros(Int64, n)
 
-    # Check if inital steps have been completed
-    if pol.steps <= pol.initial_batches
+    # Check if inital batches have been completed
+    if pol.batches <= pol.initial_batches
         for i in 1:n
             actions[i] = (pol.t + i) % num_arms + 1
         end
@@ -130,12 +130,12 @@ function update!(
     r::AbstractMatrix{Float64},
 )
     pol.t += size(X, 2)
-    pol.steps += 1
+    pol.batches += 1
     add_data!(pol.data, X, a, r)
-    if pol.steps < pol.initial_batches
+    if pol.batches < pol.initial_batches
         return nothing
     end
-    if pol.steps % pol.retrain_freq == 0 || pol.steps == pol.initial_batches
+    if pol.batches % pol.retrain_freq == 0 || pol.batches == pol.initial_batches
         for a in 1:length(pol.arms)
             Xa, ra = arm_data(pol.data, a)
             pol.arms[a] = PartitionedBayesPM(

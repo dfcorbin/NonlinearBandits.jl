@@ -1,8 +1,8 @@
-# Bandit API
+# Bandits API
 
-```@docs
-update!(pol::AbstractPolicy, X::AbstractMatrix{Float64}, a::AbstractVector{Int64},
-        r::AbstractMatrix{Float64})
+```@autodocs
+Modules = [NonlinearBandits]
+Pages = ["bandits.jl"]
 ```
 
 # Context Samplers
@@ -13,6 +13,10 @@ Pages = ["contexts.jl"]
 ```
 
 # Policies
+
+```@docs
+update!
+```
 
 ```@autodocs
 Modules = [NonlinearBandits]
