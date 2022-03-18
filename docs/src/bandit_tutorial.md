@@ -8,7 +8,7 @@ simplest of the drivers is the [`StandardDriver`](@ref), which simply passes a b
 contexts to the policy, recieves an array of actions and observes a batch of rewards.
 
 To construct the driver, we must first define how the contexts and rewards are generated.
-This can be done using from the class
+This can be done using objects with parent classes
 [`AbstractContextSampler`](@ref)/[`AbstractRewardSampler`](@ref).
 
 ```@example tutorial
@@ -37,7 +37,7 @@ pass it to the reward sampler, where we have manually chosen the first action. T
 the observed reward.
 
 To complete the driver, we need to supply an [`AbstractPolicy`](@ref) and an optional 
-tuple, with elements of type [`AbstractMetric`]. For simplicity, we will construct a policy that
+tuple, with elements of type [`AbstractMetric`](@ref). For simplicity, we will construct a policy that
 chooses action at random. We can also compute the regret of each decision using the
 [`FunctionalRegret`](@ref) metric.
 
@@ -124,8 +124,8 @@ policy = PolynomialThompsonSampling(
     num_arms, 
     inital_batches, 
     retrain_freq;
-    λ=15.0, # Increase prior scaling for complex functions
-    α=15.0, # Increase exploration for difficult problem
+    λ=20.0, # Increase prior scaling for complex functions
+    α=20.0, # Increase exploration for difficult problem
     tol=1e-3, # Regulate complexity of partition
 )
 metrics = (FunctionalRegret(mf),)
