@@ -131,7 +131,7 @@ function update!(
 )
     pol.t += size(X, 2)
     pol.batches += 1
-    add_data!(pol.data, X, a, r)
+    append_data!(pol.data, X, a, r)
     if pol.batches < pol.initial_batches
         return nothing
     end

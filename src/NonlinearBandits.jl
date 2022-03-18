@@ -1,7 +1,6 @@
 module NonlinearBandits
 
-using CUDA
-using Flux: relu, Chain, Dense
+using Flux: relu, Chain, Dense, gpu, @epochs, train!, ADAM, DataLoader, throttle, params
 using Distributions: Uniform, Normal, loggamma, InverseGamma, MvNormal
 using GLMNet: glmnet
 using LinearAlgebra: Hermitian, diagm, logdet
@@ -59,7 +58,7 @@ export AbstractBayesianLM,
     AbstractMetric,
     AbstractPolicy,
     AbstractRewardSampler,
-    add_data!,
+    append_data!,
     arm_data,
     BanditDataset,
     BayesLM,

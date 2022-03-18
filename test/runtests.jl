@@ -1,6 +1,8 @@
 using NonlinearBandits
 using Test
+using CUDA
 using Distributions: Uniform, Normal
+using Flux: gpu, cpu
 import Base: ==
 
 function mae(x1, x2)

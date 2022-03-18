@@ -58,12 +58,12 @@ function arm_data(data::BanditDataset, a::Int64)
 end
 
 """
-    add_data!(data::BanditDataset, X::AbstractMatrix{Float64}, a::AbstractVector{Int64},
+    append_data!(data::BanditDataset, X::AbstractMatrix{Float64}, a::AbstractVector{Int64},
               r::AbstractMatrix{Float64})
             
 Add a batch of data to the dataset.
 """
-function add_data!(
+function append_data!(
     data::BanditDataset,
     X::AbstractMatrix{Float64},
     a::AbstractVector{Int64},
