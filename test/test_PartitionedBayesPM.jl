@@ -38,30 +38,26 @@ function f(x)
 end
 
 X, y = NonlinearBandits.gaussian_data(d, n, f; σ=0.5)
-pbpm = auto_partitioned_bayes_pm(X, y, limits; verbose=false);
+pbpm = PartitionedBayesPM(X, y, limits; verbose=false);
 @test pbpm.P.regions == P.regions
 @test mae(pbpm.models[1].lm.β, β[1]) < 0.1
 @test mae(pbpm.models[2].lm.β, β[2]) < 0.1
 
-X, y = NonlinearBandits.gaussian_data(d, 1, f; σ=0.5)
-pbpm = auto_partitioned_bayes_pm(X, y, limits; verbose=false);
-@test length(pbpm.models) == 1
-@test pbpm.models[1].J == 0
 @test_throws(
     ArgumentError("X and limits don't match in their first dimension"),
-    auto_partitioned_bayes_pm(X[1:2, :], y, limits; verbose=false)
+    PartitionedBayesPM(X[1:2, :], y, limits; verbose=false)
 )
 @test_throws(
     ArgumentError("Jmax must be non-negative"),
-    auto_partitioned_bayes_pm(X, y, limits; Jmax=-1, verbose=false)
+    PartitionedBayesPM(X, y, limits; Jmax=-1, verbose=false)
 )
 @test_throws(
     ArgumentError("Kmax must be strictly positive"),
-    auto_partitioned_bayes_pm(X, y, limits; Kmax=0, verbose=false)
+    PartitionedBayesPM(X, y, limits; Kmax=0, verbose=false)
 )
 @test_throws(
     ArgumentError("tolerance must be non-negative"),
-    auto_partitioned_bayes_pm(X, y, limits; tol=-1.0)
+    PartitionedBayesPM(X, y, limits; tol=-1.0)
 )
 
 # Test manual partitioned model setup
