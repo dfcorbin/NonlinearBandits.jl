@@ -1,9 +1,37 @@
+"""
+    PolynomialThompsonSampling(limits::Matrix{Float64}, num_arms::Int64, 
+                               initial_batches::Int64, retrain_freq::Int64;
+                               <keyword arguments>)
+
+Construct a Thompson sampling policy that uses a [`PartitionedBayesPM`](@ref) to
+model the expected rewards.
+
+# Arguments
+
+- `limits::Matrix{Float64}`: Matrix with two columns defining the lower/upper limits of the space.
+- `num_arms::Int64`: The number of available actions.
+- `inital_batches::Int64`: The number of batches to sample before training the polnomial
+    models.
+- `retrain_freq::Int64`: The frequency (in terms of batches) at which the partition/basis
+    selection is retrained from scratch.
+- `α::Float64=1.0`: Thompson sampling inflation. `α > 1` and increasing alpha increases the
+    amount of exploration.
+- `Jmax::Int64=3`: The maximum degree of any polynomial region.
+- `Pmax::Int64=100`: The maximum number of features in any polynomial region.
+- `Kmax::Int64=500`: The maximum number of regions in the partition.
+- `λ::Float64=1.0`: Prior scaling.
+- `shape0::Float64=1e-3`: Inverse-gamma prior shape hyperparameter.
+- `scale0::Float64=1e-3`: Inverse-gamma prior scale hyperparameter.
+- `ratio::Float64=1.0`: Polynomial degrees are reduced until `size(X, 2) < ratio * length(tpbasis(d, J))`.
+- `tol::Float64=1e-4`: The required increase in the model evidence to accept a split.
+- `verbose_retrain::Bool=true`: Print details of the partition search.
+"""
 mutable struct PolynomialThompsonSampling <: AbstractPolicy
     t::Int64
     steps::Int64
     data::BanditDataset
     arms::Vector{PartitionedBayesPM}
-    initial_steps::Int64
+    initial_batches::Int64
     α::Float64
     retrain_freq::Int64
     limits::Matrix{Float64}
@@ -21,7 +49,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
     function PolynomialThompsonSampling(
         limits::Matrix{Float64},
         num_arms::Int64,
-        initial_steps::Int64,
+        initial_batches::Int64,
         retrain_freq::Int64;
         α::Float64=1.0,
         Jmax::Int64=3,
@@ -42,7 +70,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
             0,
             data,
             arms,
-            initial_steps,
+            initial_batches,
             α,
             retrain_freq,
             limits,
@@ -59,13 +87,13 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
     end
 end
 
-function (pol::PolynomialThompsonSampling)(X::AbstractMatrix)
+function (pol::PolynomialThompsonSampling)(X::AbstractMatrix{Float64})
     n = size(X, 2)
     num_arms = length(pol.arms)
     actions = zeros(Int64, n)
 
     # Check if inital steps have been completed
-    if pol.steps <= pol.initial_steps
+    if pol.steps <= pol.initial_batches
         for i in 1:n
             actions[i] = (pol.t + i) % num_arms + 1
         end
@@ -97,17 +125,17 @@ end
 
 function update!(
     pol::PolynomialThompsonSampling,
-    X::AbstractMatrix,
+    X::AbstractMatrix{Float64},
     a::AbstractVector{Int64},
-    r::AbstractMatrix,
+    r::AbstractMatrix{Float64},
 )
     pol.t += size(X, 2)
     pol.steps += 1
     add_data!(pol.data, X, a, r)
-    if pol.steps < pol.initial_steps
+    if pol.steps < pol.initial_batches
         return nothing
     end
-    if pol.steps % pol.retrain_freq == 0 || pol.steps == pol.initial_steps
+    if pol.steps % pol.retrain_freq == 0 || pol.steps == pol.initial_batches
         for a in 1:length(pol.arms)
             Xa, ra = arm_data(pol.data, a)
             pol.arms[a] = PartitionedBayesPM(

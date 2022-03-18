@@ -1,4 +1,3 @@
-using NonlinearBandits, Test
 d, batch_size = 5, 100
 limits = repeat([-1.0 1.0], d, 1)
 mf = (x -> 100, x -> -100)
