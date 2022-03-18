@@ -13,3 +13,13 @@ X, a, r = driver(batch_size)
 @test all(r[1, a .== 2] .< -90)
 @test all(metrics[1].regret[a .== 1] .== 0.0)
 @test all(metrics[1].regret[a .== 2] .== 200.0)
+
+driver = StandardDriver(csampler, policy, rsampler)
+X, a, r = driver(batch_size)
+@test size(X) == (d, batch_size)
+@test all(r[1, a .== 1] .> 90)
+@test all(r[1, a .== 2] .< -90)
+
+@test_throws(
+    ArgumentError("num_batches and batch_size must be positive"), run!(0, 0, driver)
+)

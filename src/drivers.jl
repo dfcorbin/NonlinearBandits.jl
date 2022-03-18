@@ -51,6 +51,9 @@ Run a `driver` for `num_batches` batches.
 function run!(
     num_batches::Int64, batch_size::Int64, driver::AbstractDriver; verbose::Bool=true
 )
+    if num_batches <= 0 || batch_size <= 0
+        throw(ArgumentError("num_batches and batch_size must be positive"))
+    end
     for i in 1:num_batches
         if verbose
             print("\rStep $i/$num_batches")
