@@ -9,9 +9,9 @@ csampler = UniformContexts(limits)
 rsampler = GaussianRewards(mf)
 policy = PolynomialThompsonSampling(limits, num_arms, 5, 5; λ=10.0)
 driver = StandardDriver(csampler, policy, rsampler)
-num_batches, batch_size = 10, 100
+num_batches, batch_size = 10, 500
 
-run!(num_batches, batch_size, driver)
+run!(num_batches, batch_size, driver, verbose=false)
 X1, y1 = arm_data(policy.data, 1)
 X2, y2 = arm_data(policy.data, 2)
 @test size(X1, 2) + size(X2, 2) == num_batches * batch_size
