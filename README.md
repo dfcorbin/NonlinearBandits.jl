@@ -7,3 +7,6 @@
 
 A Julia package implementing a selection of nonlinear contextual multi-armed bandit policies. See
 the pacakge documentation for more information: [stable](https://dfcorbin.github.io/NonlinearBandits.jl/stable)/[dev](https://dfcorbin.github.io/NonlinearBandits.jl/dev/)
+
+**Policies:**
+- Partitioned Polynomial Thompson Sampling
