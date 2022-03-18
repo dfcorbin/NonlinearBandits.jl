@@ -90,19 +90,19 @@ function check_limits(limits::Matrix{Float64})
 end
 
 """
-    expand(X::AbstractMatrix, basis::Vector{Index}, limits::Matrix{Float64};
+    expand(X::AbstractMatrix{Float64}, basis::Vector{Index}, limits::Matrix{Float64};
            J::Union{Nothing,Int64}=nothing)
 
 Expand the columns of X into a rescaled legendre polynomial basis.
 
 # Arguments
-- `X::AbstractMatrix`: Matrix with observations stored as columns.
+- `X::AbstractMatrix{Float64}`: Matrix with observations stored as columns.
 - `basis::Vector{Index}`: Vector of monomial indices.
 - `limits::Matrix{Float64}`: Matrix with two columns defining the lower/upper limits of the space.
 - `J::Union{Nothing, Int64}=nothing`: The maximum degree of the basis. Inferred if not specified.
 """
 function expand(
-    X::AbstractMatrix,
+    X::AbstractMatrix{Float64},
     basis::Vector{Index},
     limits::Matrix{Float64};
     J::Union{Nothing,Int64}=nothing,
@@ -143,16 +143,8 @@ function expand(
     return Y
 end
 
-mutable struct BayesPM <: AbstractBayesianLM
-    J::Int64
-    basis::Vector{Index}
-    limits::Matrix{Float64}
-    lm::BayesLM
-end
-
 """
-    BayesPM(basis::Vector{Index}, limits::Matrix{Float64}; λ::Float64=1.0,
-            shape0::Float64=1e-3, scale0::Float64=1e-3) 
+    BayesPM(basis::Vector{Index}, limits::Matrix{Float64}; <keyword arguments>) 
 
 Construct a Bayesian linear model on polynomial features.
 
@@ -163,17 +155,24 @@ Construct a Bayesian linear model on polynomial features.
 - `shape0::Float64=1e-3`: Inverse-gamma prior shape hyperparameter.
 - `scale0::Float64=1e=3`: Inverse-gamma prior scale hyperparameter.
 """
-function BayesPM(
-    basis::Vector{Index},
-    limits::Matrix{Float64};
-    λ::Float64=1.0,
-    shape0::Float64=1e-3,
-    scale0::Float64=1e-3,
-)
-    check_limits(limits)
-    lm = BayesLM(length(basis); λ=λ, shape0=shape0, scale0=scale0)
-    J = maximum(udeg.(basis))
-    return BayesPM(J, basis, limits, lm)
+mutable struct BayesPM <: AbstractBayesianLM
+    J::Int64
+    basis::Vector{Index}
+    limits::Matrix{Float64}
+    lm::BayesLM
+
+    function BayesPM(
+        basis::Vector{Index},
+        limits::Matrix{Float64};
+        λ::Float64=1.0,
+        shape0::Float64=1e-3,
+        scale0::Float64=1e-3,
+    )
+        check_limits(limits)
+        lm = BayesLM(length(basis); λ=λ, shape0=shape0, scale0=scale0)
+        J = maximum(udeg.(basis))
+        return new(J, basis, limits, lm)
+    end
 end
 
 function fit!(pm::BayesPM, X::AbstractMatrix, y::AbstractMatrix)

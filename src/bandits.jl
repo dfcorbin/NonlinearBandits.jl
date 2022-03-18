@@ -1,117 +1,79 @@
+"""
+Called with an integer `n > 0` to genrate a `d x n` matrix of contexts.
+"""
 abstract type AbstractContextSampler end
-abstract type AbstractRewardSampler end
-abstract type AbstractPolicy end
+
+"""
+Driver to manage how the bandit policy interacts with its environment.
+"""
 abstract type AbstractDriver end
 
 """
-    UniformContexts(limits::Matrix{Float64})
-
-Construct a callable object to generate uniform contexts.
+A metric that will be called as `metric(X, a, r)` after each batch outputted by a driver.
 """
-struct UniformContexts <: AbstractContextSampler
-    limits::Matrix{Float64}
-
-    function UniformContexts(limits::Matrix{Float64})
-        check_limits(limits)
-        return new(limits)
-    end
-end
-
-function (sampler::UniformContexts)(n::Int64)
-    d = size(sampler.limits, 1)
-    X = zeros(d, n)
-    for i in 1:d
-        X[i, :] = rand(Uniform(sampler.limits[i, 1], sampler.limits[i, 2]), n)
-    end
-    return X
-end
+abstract type AbstractMetric end
 
 """
-    GaussianRewards(mf::T; <keyword arguments>) where {T<:Tuple{Vararg{<:Function}}}
-
-Construct a callable object to sample gaussian rewards.
-
-# Arguments
-- `mf`: A Tuple of functions which take a 1-dimensional input and output the (scalar)
-        mean reward for the corresponding action.
-- `σ::Float64`: The standard deviation of the gaussian noise applied to each reward. 
+A callable policy that outputs actions via `policy(X)` and is updated via [`update!`](@ref)
 """
-struct GaussianRewards{T} <: AbstractRewardSampler
-    mf::T
-    σ::Float64
-
-    function GaussianRewards(mf::T; σ::Float64=1.0) where {T<:Tuple{Vararg{<:Function}}}
-        return new{T}(mf, σ)
-    end
-end
-
-function (sampler::GaussianRewards)(X::AbstractMatrix, a::AbstractVector)
-    n = size(X, 2)
-    r = zeros(1, n)
-    @inbounds for i in 1:n
-        r[i] = sampler.mf[a[i]](X[:, i])
-    end
-    r += rand(Normal(0, sampler.σ), 1, n)
-    return r
-end
+abstract type AbstractPolicy end
 
 """
-    RandomPolicy(num_actions::Int64)
-
-Construct a policy that chooses actions at random.
+A callable object to ouput rewards via `sampler(X, a)`.
 """
-struct RandomPolicy <: AbstractPolicy
-    num_actions::Int64
-    function RandomPolicy(num_actions::Int64)
-        return if num_actions > 0
-            new(num_actions)
-        else
-            throw(ArgumentError("num_actions must be positive"))
+abstract type AbstractRewardSampler end
+
+"""
+    BanditDataset(d::Int64)
+
+Stores the trajectory of a bandit simulation.
+"""
+mutable struct BanditDataset
+    X::Matrix{Float64}
+    a::Vector{Int64}
+    r::Matrix{Float64}
+
+    function BanditDataset(d::Int64)
+        if d <= 0
+            throw(ArgumentError("d must be positive"))
         end
+        X = Matrix{Float64}(undef, d, 0)
+        a = Int64[]
+        r = Matrix{Float64}(undef, 1, 0)
+        return new(X, a, r)
     end
 end
 
-function (pol::RandomPolicy)(X::AbstractMatrix)
-    n = size(X, 2)
-    return rand(1:(pol.num_actions), n)
+"""
+    rm_data(data::BanditDataset, a::Int64)
+
+Return the data associated with arm `a`.
+"""
+function arm_data(data::BanditDataset, a::Int64)
+    if a <= 0
+        throw(ArgumentError("a must be positive"))
+    end
+    idx = data.a .== a
+    return data.X[:, idx], data.r[:, idx]
 end
 
 """
-    StandardDriver(csampler::AbstractContextSampler, policy::AbstractPolicy, 
-                   rsampler::AbstractRewardSampler[, metrics::Tuple])
-
-A simple driver that samples contexts, passes them to the policy to generate actions,
-then observes the rewards.
-
-# Arguments
-- `csampler::AbstractContextSampler`: Context sampler.
-- `policy::AbstractPolicy`: Policy to generate actions given contexts.
-- `rsampler::AbstractRewardSampler`: Sampler for rewards, given the contexts and actions.
-- `metrics`: A tuple of callable objects that will each be called obj(X, a, r).
+    add_data!(data::BanditDataset, X::AbstractMatrix{Float64}, a::AbstractVector{Int64},
+              r::AbstractMatrix{Float64})
+            
+Add a batch of data to the dataset.
 """
-mutable struct StandardDriver{
-    T1<:AbstractContextSampler,T2<:AbstractRewardSampler,T3<:AbstractPolicy,T4<:Tuple
-} <: AbstractDriver
-    csampler::T1
-    policy::T3
-    rsampler::T2
-    metrics::T4
-end
-
-function StandardDriver(
-    csampler::AbstractContextSampler,
-    policy::AbstractPolicy,
-    rsampler::AbstractRewardSampler,
+function add_data!(
+    data::BanditDataset,
+    X::AbstractMatrix{Float64},
+    a::AbstractVector{Int64},
+    r::AbstractMatrix{Float64},
 )
-    return StandardDriver(csampler, policy, rsampler, ())
-end
-
-function (driver::StandardDriver)(n::Int64)
-    X = driver.csampler(n)
-    a = driver.policy(X)
-    r = driver.rsampler(X, a)
-    for m in driver.metrics
-        m(X, a, r)
+    check_regression_data(X, r)
+    if size(X, 1) != size(data.X, 1)
+        throw(DimensionMismatch("X does not match the dimension of the dataset"))
     end
-    return X, a, r
+    data.X = hcat(data.X, X)
+    data.r = hcat(data.r, r)
+    return data.a = vcat(data.a, a)
 end

@@ -3,6 +3,17 @@ Abstract type for models using a Gaussian/normal-inverse-gamma conjugate prior.
 """
 abstract type AbstractBayesianLM end
 
+"""
+    BayesLM(d::Int; <keyword arguments>)        
+
+Construct a Bayesian linear model.
+
+# Arguments
+
+- `λ::Float64=1.0`: Prior scaling.
+- `shape0::Float64=1e-3`: Inverse-gamma prior shape hyperparameter.
+- `scale0::Float64=1e-3`: Inverse-gamma prior scale hyperparameter.
+"""
 mutable struct BayesLM <: AbstractBayesianLM
     shape0::Float64
     scale0::Float64
@@ -14,9 +25,23 @@ mutable struct BayesLM <: AbstractBayesianLM
     β::Matrix{Float64}
     Σ::Hermitian{Float64,Matrix{Float64}}
     Λ::Hermitian{Float64,Matrix{Float64}}
+
+    function BayesLM(d::Int64; λ::Float64=1.0, shape0::Float64=1e-3, scale0::Float64=1e-3)
+        if d <= 0 || shape0 <= 0 || scale0 <= 0
+            msg = "d, shape0 and scale0 must be strictly positive"
+            throw(ArgumentError(msg))
+        end
+        β0, Σ0, Λ0 = zeros(d, 1),
+        Hermitian(diagm(ones(d)) * λ),
+        Hermitian(diagm(ones(d)) / λ)
+        β, Σ, Λ = deepcopy(β0), deepcopy(Σ0), deepcopy(Λ0)
+        return new(shape0, scale0, β0, Σ0, Λ0, shape0, scale0, β, Σ, Λ)
+    end
 end
 
-function sherman_morrison_inv(Ainv::AbstractMatrix, u::AbstractMatrix, v::AbstractMatrix)
+function sherman_morrison_inv(
+    Ainv::AbstractMatrix{Float64}, u::AbstractMatrix{Float64}, v::AbstractMatrix{Float64}
+)
     if size(u) != size(v)
         throw(DimensionMismatch("u and v have mismatched dimensions"))
     elseif size(u, 2) != 1
@@ -29,28 +54,7 @@ function sherman_morrison_inv(Ainv::AbstractMatrix, u::AbstractMatrix, v::Abstra
     return Ainv - numer / denom
 end
 
-"""
-    BayesLM(d::Int; <keyword arguments>)        
-
-Construct a Bayesian linear model.
-
-# Arguments
-
-- `λ::Float64=1.0`: Prior scaling.
-- `shape0::Float64=1e-3`: Inverse-gamma prior shape hyperparameter.
-- `scale0::Float64=1e-3`: Inverse-gamma prior scale hyperparameter.
-"""
-function BayesLM(d::Int64; λ::Float64=1.0, shape0::Float64=1e-3, scale0::Float64=1e-3)
-    if d <= 0 || shape0 <= 0 || scale0 <= 0
-        msg = "d, shape0 and scale0 must be strictly positive"
-        throw(ArgumentError(msg))
-    end
-    β0, Σ0, Λ0 = zeros(d, 1), Hermitian(diagm(ones(d)) * λ), Hermitian(diagm(ones(d)) / λ)
-    β, Σ, Λ = deepcopy(β0), deepcopy(Σ0), deepcopy(Λ0)
-    return BayesLM(shape0, scale0, β0, Σ0, Λ0, shape0, scale0, β, Σ, Λ)
-end
-
-function check_regression_data(X::AbstractMatrix, y::AbstractMatrix)
+function check_regression_data(X::AbstractMatrix{Float64}, y::AbstractMatrix{Float64})
     if size(y, 1) != 1
         throw(ArgumentError("y should have exactly 1 row"))
     elseif size(X, 2) != size(y, 2)
@@ -58,7 +62,7 @@ function check_regression_data(X::AbstractMatrix, y::AbstractMatrix)
     end
 end
 
-function fit!(lm::BayesLM, X::AbstractMatrix, y::AbstractMatrix)
+function fit!(lm::BayesLM, X::AbstractMatrix{Float64}, y::AbstractMatrix{Float64})
     check_regression_data(X, y)
     if size(lm.β, 1) != size(X, 1)
         msg = "X does not have the same number of predictors as the model"
@@ -73,7 +77,7 @@ function fit!(lm::BayesLM, X::AbstractMatrix, y::AbstractMatrix)
     return lm.shape, lm.scale, lm.β, lm.Σ, lm.Λ = shape, scale, β, Σ, Λ
 end
 
-function (lm::BayesLM)(X::AbstractMatrix)
+function (lm::BayesLM)(X::AbstractMatrix{Float64})
     if size(X, 1) != size(lm.β, 1)
         msg = "X does not have the same number of predictors as the model"
         throw(DimensionMismatch(msg))
@@ -81,10 +85,14 @@ function (lm::BayesLM)(X::AbstractMatrix)
     return lm.β' * X
 end
 
-"""
-    std(model)
+function shape_scale(lm::BayesLM)
+    return lm.shape, lm.scale
+end
 
-Computed the posterior expected standard deviation from the model.
+"""
+    std(model::AbstractBayesianLM)
+
+Return the posterior mean of the inverse-gamma distribution.
 """
 function std(model::AbstractBayesianLM)
     shape, scale = shape_scale(model)
@@ -92,8 +100,4 @@ function std(model::AbstractBayesianLM)
         throw(ArgumentError("normal-inverse-gamma has undefined mean for shape ≤ 1"))
     end
     return sqrt(scale / (shape - 1))
-end
-
-function shape_scale(lm::BayesLM)
-    return lm.shape, lm.scale
 end
