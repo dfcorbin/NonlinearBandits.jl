@@ -15,6 +15,7 @@ include("contexts.jl")
 include("rewards.jl")
 include("metrics.jl")
 include("drivers.jl")
+include("RandomPolicy.jl")
 include("PolynomialThompsonSampling.jl")
 
 """

@@ -16,11 +16,9 @@ makedocs(;
         assets=String[],
     ),
     pages=[
-        "Tutorial" => [
-            "Contextual Bandits" => "bandit_tutorial.md",
-            "Models" => "regression_tutorial.md",
-        ],
-        "API" => "index.md",
+        "Introduction" => "index.md",
+        "Tutorial" => ["Partitioned Polynomials" => "ppm_tutorial.md"],
+        "API" => ["Bandits" => ["bandits_api.md"], "Models" => ["model_api.md"]],
     ],
 )
 

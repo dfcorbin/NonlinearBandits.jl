@@ -7,15 +7,14 @@ num_arms = length(mf)
 
 csampler = UniformContexts(limits)
 rsampler = GaussianRewards(mf)
-inital_batches = 5
-policy = PolynomialThompsonSampling(limits, num_arms, inital_batches, 5; λ=10.0)
+policy = PolynomialThompsonSampling(limits, num_arms, 5, 5; λ=10.0)
 driver = StandardDriver(csampler, policy, rsampler)
-batch_size = 100
+num_batches, batch_size = 10, 100
 
-run!(inital_batches, batch_size, driver)
+run!(num_batches, batch_size, driver)
 X1, y1 = arm_data(policy.data, 1)
 X2, y2 = arm_data(policy.data, 2)
-@test size(X1, 2) + size(X2, 2) == inital_batches * batch_size
+@test size(X1, 2) + size(X2, 2) == num_batches * batch_size
 @test policy.arms[1].models[1].J == 0
 @test abs(policy.arms[1].models[1].lm.β[1] - 10.0) < 0.1
 @test policy.arms[2].models[1].J == 0
