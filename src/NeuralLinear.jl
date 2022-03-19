@@ -122,6 +122,7 @@ end
 function update!(
     pol::NeuralLinear, X::AbstractMatrix, a::AbstractVector{<:Int}, r::AbstractMatrix
 )
+    check_regression_data(X, r)
     pol.t += size(X, 2)
     pol.batches += 1
     append_data!(pol.data, X, a, r)
@@ -161,7 +162,7 @@ function (pol::NeuralLinear)(X::AbstractMatrix)
     actions = zeros(Int64, n)
 
     # Check if inital batches have been completed
-    if pol.batches <= pol.initial_batches
+    if pol.batches < pol.initial_batches
         for i in 1:n
             actions[i] = (pol.t + i) % num_arms + 1
         end

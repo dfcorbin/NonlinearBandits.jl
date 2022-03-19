@@ -30,3 +30,21 @@ fit!(enc, X, a, r, 10; verbose=false)
 Ypred = cpu(enc.nn(gpu(X)))
 @test mae(Ypred[1:1, :], mapslices(mf[1], X; dims=1)) < 0.1
 @test mae(Ypred[2:2, :], mapslices(mf[2], X; dims=1)) < 0.1
+
+# Test updating NeuralLinear policy appears to work
+limits = repeat([-1.0 1.0], d, 1)
+csampler = UniformContexts(limits)
+rsampler = GaussianRewards(mf)
+metrics = (FunctionalRegret(mf),)
+
+# Test NeuralLinear appears to be learning the optimal policy.
+batch_size = 1000
+num_batches = 2
+initial_batches = retrain_freq = 1
+nl = NeuralLinear(d, length(mf), layer_sizes, initial_batches, retrain_freq, 20)
+metrics = (FunctionalRegret(mf),)
+driver = StandardDriver(csampler, nl, rsampler, metrics)
+run!(num_batches, batch_size, driver)
+
+regret = metrics[1].regret[(end - batch_size + 1):end]
+@test sum(regret .== 0.0) / length(regret) >= 0.95
