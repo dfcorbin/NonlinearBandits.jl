@@ -12,7 +12,7 @@ mutable struct FunctionalRegret{T<:Tuple{Vararg{<:Function}}} <: AbstractMetric
 end
 
 function (met::FunctionalRegret)(
-    X::AbstractMatrix{Float64}, a::AbstractVector{Int64}, r::AbstractMatrix{Float64}
+    X::AbstractMatrix, a::AbstractVector{<:Int}, r::AbstractMatrix
 )
     n = size(X, 2)
     Rmean = zeros(n, length(met.mf))

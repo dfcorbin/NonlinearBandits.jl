@@ -39,9 +39,7 @@ mutable struct BayesLM <: AbstractBayesianLM
     end
 end
 
-function sherman_morrison_inv(
-    Ainv::AbstractMatrix{Float64}, u::AbstractMatrix{Float64}, v::AbstractMatrix{Float64}
-)
+function sherman_morrison_inv(Ainv::AbstractMatrix, u::AbstractMatrix, v::AbstractMatrix)
     if size(u) != size(v)
         throw(DimensionMismatch("u and v have mismatched dimensions"))
     elseif size(u, 2) != 1
@@ -54,7 +52,7 @@ function sherman_morrison_inv(
     return Ainv - numer / denom
 end
 
-function check_regression_data(X::AbstractMatrix{Float64}, y::AbstractMatrix{Float64})
+function check_regression_data(X::AbstractMatrix, y::AbstractMatrix)
     if size(y, 1) != 1
         throw(ArgumentError("y should have exactly 1 row"))
     elseif size(X, 2) != size(y, 2)
@@ -62,7 +60,7 @@ function check_regression_data(X::AbstractMatrix{Float64}, y::AbstractMatrix{Flo
     end
 end
 
-function fit!(lm::BayesLM, X::AbstractMatrix{Float64}, y::AbstractMatrix{Float64})
+function fit!(lm::BayesLM, X::AbstractMatrix, y::AbstractMatrix)
     check_regression_data(X, y)
     if size(lm.β, 1) != size(X, 1)
         msg = "X does not have the same number of predictors as the model"
@@ -77,7 +75,7 @@ function fit!(lm::BayesLM, X::AbstractMatrix{Float64}, y::AbstractMatrix{Float64
     return lm.shape, lm.scale, lm.β, lm.Σ, lm.Λ = shape, scale, β, Σ, Λ
 end
 
-function (lm::BayesLM)(X::AbstractMatrix{Float64})
+function (lm::BayesLM)(X::AbstractMatrix)
     if size(X, 1) != size(lm.β, 1)
         msg = "X does not have the same number of predictors as the model"
         throw(DimensionMismatch(msg))

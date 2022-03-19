@@ -87,7 +87,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
     end
 end
 
-function (pol::PolynomialThompsonSampling)(X::AbstractMatrix{Float64})
+function (pol::PolynomialThompsonSampling)(X::AbstractMatrix)
     n = size(X, 2)
     num_arms = length(pol.arms)
     actions = zeros(Int64, n)
@@ -125,13 +125,13 @@ end
 
 function update!(
     pol::PolynomialThompsonSampling,
-    X::AbstractMatrix{Float64},
-    a::AbstractVector{Int64},
-    r::AbstractMatrix{Float64},
+    X::AbstractMatrix,
+    a::AbstractVector{<:Int},
+    r::AbstractMatrix,
 )
     pol.t += size(X, 2)
     pol.batches += 1
-    add_data!(pol.data, X, a, r)
+    append_data!(pol.data, X, a, r)
     if pol.batches < pol.initial_batches
         return nothing
     end

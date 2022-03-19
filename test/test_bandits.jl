@@ -3,7 +3,7 @@ data = BanditDataset(d)
 X = rand(2, 2)
 a = [1, 2]
 r = rand(1, 2)
-add_data!(data, X, a, r)
+append_data!(data, X, a, r)
 @test data.X == X
 @test data.a == a
 @test data.r == r
@@ -14,5 +14,5 @@ add_data!(data, X, a, r)
 @test_throws(ArgumentError("a must be positive"), arm_data(data, -1))
 @test_throws(
     DimensionMismatch("X does not match the dimension of the dataset"),
-    add_data!(data, X[1:1, :], a, r)
+    append_data!(data, X[1:1, :], a, r)
 )

@@ -1,6 +1,8 @@
 using NonlinearBandits
 using Test
+using CUDA
 using Distributions: Uniform, Normal
+using Flux: gpu, cpu
 import Base: ==
 
 function mae(x1, x2)
@@ -41,4 +43,8 @@ end
 
 @testset "PolynomialThompsonSampling." begin
     include("test_PolynomialThompsonSampling.jl")
+end
+
+@testset "NeuralLinear.jl" begin
+    include("test_NeuralLinear.jl")
 end
