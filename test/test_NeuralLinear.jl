@@ -39,7 +39,7 @@ metrics = (FunctionalRegret(mf),)
 
 # Test NeuralLinear appears to be learning the optimal policy.
 batch_size = 1000
-num_batches = 2
+num_batches = 3
 initial_batches = retrain_freq = 1
 nl = NeuralLinear(d, length(mf), layer_sizes, initial_batches, retrain_freq, 20)
 metrics = (FunctionalRegret(mf),)
