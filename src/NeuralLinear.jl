@@ -7,6 +7,12 @@ function action_matrix(a::Vector{Int}, num_actions::Int)
     return A
 end
 
+"""
+    NeuralEncoder(d_int::Int64, d_out::Int64, layer_sizes::Vector{Int64})
+
+Construct a callable object that returns the final layer activations of a
+neural network **(which can be trained with a contextual multi armed bandit trajectory)**.
+"""
 mutable struct NeuralEncoder{T1<:Chain,T2<:Function}
     nn::T1
     loss::T2
@@ -42,6 +48,18 @@ function (enc::NeuralEncoder)(X::AbstractArray)
     return cpu(enc.nn[:enc](X))
 end
 
+"""
+    fit!(enc::NeuralEncoder, X::AbstractMatrix, a::AbstractVector{<:Int}, r::AbstractMatrix,
+         epochs::Int64)
+        
+Update a the neural network parameters using a contextual multi-armed bandit trajectory.
+
+# Keyword Arguments
+
+- `batch_size::Int64=32`: The batch size to use while training the neural network.
+- `opt=ADAM()`: The optimizer to use for updating the parameters.
+- `verbose::Bool=true`: Print details of the fitting procedure.
+"""
 function fit!(
     enc::NeuralEncoder,
     X::AbstractMatrix,
@@ -68,6 +86,22 @@ function fit!(
     end
 end
 
+"""
+    NeuralLinear(d::Int64, num_arms::Int64, layer_sizes::Vector{Int64}, inital_batches::Int64,
+                 retrain_freq::Int64, epochs::Int64)
+
+NeuralLinear policy introduced in the paper [Deep Bayesian Bandits Showdown: An Empirical
+Comparison of Bayesian Deep Networks for Thompson Sampling](https://arxiv.org/abs/1802.09127).
+
+# Keyword Arguments
+
+- `opt=ADAM()`: Optimizer used to update the neural network parameters.
+- `λ::Float64=1.0`: Prior scaling.
+- `shape0::Float64=1e-3`: Inverse-gamma prior shape hyperparameter.
+- `scale0::Float64=1e-3`: Inverse-gamma prior scale hyperparameter.
+- `verbose_retrain::Bool=false`: Print the details of the neural network training
+    procedure.
+"""
 mutable struct NeuralLinear{T1<:NeuralEncoder,T2} <: AbstractPolicy
     t::Int64
     batches::Int64

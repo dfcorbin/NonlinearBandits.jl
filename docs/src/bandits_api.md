@@ -20,7 +20,7 @@ update!
 
 ```@autodocs
 Modules = [NonlinearBandits]
-Pages = ["RandomPolicy.jl", "PolynomialThompsonSampling.jl"]
+Pages = ["RandomPolicy.jl", "PolynomialThompsonSampling.jl", "NeuralLinear.jl"]
 ```
 
 # Reward Samplers
