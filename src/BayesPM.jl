@@ -90,19 +90,19 @@ function check_limits(limits::Matrix{Float64})
 end
 
 """
-    expand(X::AbstractMatrix{Float64}, basis::Vector{Index}, limits::Matrix{Float64};
+    expand(X::AbstractMatrix, basis::Vector{Index}, limits::Matrix{Float64};
            J::Union{Nothing,Int64}=nothing)
 
 Expand the columns of X into a rescaled legendre polynomial basis.
 
 # Arguments
-- `X::AbstractMatrix{Float64}`: Matrix with observations stored as columns.
+- `X::AbstractMatrix`: Matrix with observations stored as columns.
 - `basis::Vector{Index}`: Vector of monomial indices.
 - `limits::Matrix{Float64}`: Matrix with two columns defining the lower/upper limits of the space.
 - `J::Union{Nothing, Int64}=nothing`: The maximum degree of the basis. Inferred if not specified.
 """
 function expand(
-    X::AbstractMatrix{Float64},
+    X::AbstractMatrix,
     basis::Vector{Index},
     limits::Matrix{Float64};
     J::Union{Nothing,Int64}=nothing,

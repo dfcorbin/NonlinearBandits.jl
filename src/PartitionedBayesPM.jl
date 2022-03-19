@@ -32,11 +32,11 @@ function split!(P::Partition, k::Int64, d::Int64)
 end
 
 """
-    locate(P::Partition, X::AbstractMatrix{Float64})
+    locate(P::Partition, X::AbstractMatrix)
 
 Return a vector of integers giving the region index for each column of `X`.
 """
-function locate(P::Partition, X::AbstractMatrix{Float64})
+function locate(P::Partition, X::AbstractMatrix)
     d, n = size(X)
     if d != size(P.limits, 1)
         throw(DimensionMismatch("P does match the dimension of X"))
@@ -177,8 +177,8 @@ function evidence(models::Vector{BayesPM}, shape0::Float64, scale0::Float64)
 end
 
 function _conditional_degree_selection!(
-    X::Matrix{Float64}, # Data to train new polynomial
-    y::Matrix{Float64}, # Data to train new polynomial
+    X::AbstractMatrix, # Data to train new polynomial
+    y::AbstractMatrix, # Data to train new polynomial
     k::Int64, # Subregion to be replaced
     d::Int64, # Dimension index of model cache
     lateral::Int64, # Lateral index of model cache
