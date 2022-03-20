@@ -33,13 +33,47 @@ function StandardDriver(
     return StandardDriver(csampler, policy, rsampler, ())
 end
 
-function (driver::StandardDriver)(batchsize::Int64)
-    X = driver.csampler(batchsize)
+function (driver::StandardDriver)(batch_size::Int64)
+    X = driver.csampler(batch_size)
     a = driver.policy(X)
     r = driver.rsampler(X, a)
     for met in driver.metrics
         met(X, a, r)
     end
+    return X, a, r
+end
+
+mutable struct LatentDriver{
+    T1<:AbstractContextSampler,
+    T2<:AbstractRewardSampler,
+    T3<:AbstractPolicy,
+    T4<:Tuple{Vararg{<:AbstractMetric}},
+    T5<:Function,
+} <: AbstractDriver
+    csampler::T1
+    policy::T3
+    rsampler::T2
+    tform::T5
+    metrics::T4
+end
+
+function LatentDriver(
+    csampler::AbstractContextSampler,
+    policy::AbstractPolicy,
+    rsampler::AbstractRewardSampler,
+    tform::Function,
+)
+    return LatentDriver(csampler, policy, rsampler, tform, ())
+end
+
+function (driver::LatentDriver)(batch_size::Int64)
+    Z = driver.csampler(batch_size)
+    a = driver.policy(Z)
+    r = driver.rsampler(Z, a)
+    for met in driver.metrics
+        met(Z, a, r)
+    end
+    X = mapslices(driver.tform, Z; dims=1)
     return X, a, r
 end
 
