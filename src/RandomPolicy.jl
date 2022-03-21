@@ -19,4 +19,4 @@ function (pol::RandomPolicy)(X::AbstractMatrix)
     return rand(1:(pol.num_actions), n)
 end
 
-function update!(pol::RandomPolicy, X::AbstractMatrix, a::AbstractVector, r::AbstractMatrix) end
+function update!(pol::RandomPolicy, X::AbstractMatrix, a::AbstractVector{<:Int}, r::AbstractMatrix) end

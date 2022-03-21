@@ -118,12 +118,12 @@ rsampler = GaussianRewards(mf)
 
 batch_size = 10 # Update linear model after ever 10 steps
 inital_batches = 1 # Initialise models after 1 batch
-retrain_freq = 10 # Retrain partition after every 10 batches
+retrain = [10 * i for i in 1:10000] # Retrain partition after every 10 batches
 policy = PolynomialThompsonSampling(
-    limits, 
+    d, 
     num_arms, 
     inital_batches, 
-    retrain_freq;
+    retrain;
     λ=20.0, # Increase prior scaling for complex functions
     α=20.0, # Increase exploration for difficult problem
     tol=1e-3, # Regulate complexity of partition
@@ -138,9 +138,10 @@ function thompson_std(pol::PolynomialThompsonSampling, X::AbstractMatrix{Float64
     n = size(X, 2)
     σ = zeros(n)
 
+    X1 = NonlinearBandits.truncate_batch(pol.limits, X)
     for i in 1:n
         shape, scale = NonlinearBandits.shape_scale(pol.arms[a])
-        x = X[:, i:i]
+        x = X1[:, i:i]
         k = locate(pol.arms[a].P, x)[1]
         varmean = scale / (shape - 1)
         Σ = pol.α * varmean * pol.arms[a].models[k].lm.Σ
@@ -156,7 +157,7 @@ function thompson_std(pol::PolynomialThompsonSampling, X::AbstractMatrix{Float64
 end
 
 view_batches = [1, 10, 20, 50, 1000]
-Xplt = reshape(xplt, (1, :))
+Xplt = reshape(xplt, (1, :)) |> collect
 
 plt_vec = []
 for s in view_batches
@@ -164,7 +165,7 @@ for s in view_batches
     plt = plot(legend=nothing, title="Batches: $s, Time: $(policy.t)")
     for a in 1:length(mf)
         plot!(plt, xplt, mf[a], color=cls[a])
-        yplt = policy.arms[a](Xplt)
+        yplt = NonlinearBandits.predict(policy, Xplt, a)
         std = thompson_std(policy, Xplt, a)
         plot!(xplt, yplt[1, :], color=cls[a], ribbon= 2 * std, ls=:dash, fillalpha=0.2)
         Xa, ra = arm_data(policy.data, a)

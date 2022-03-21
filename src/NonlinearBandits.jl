@@ -20,6 +20,7 @@ include("drivers.jl")
 include("RandomPolicy.jl")
 include("PolynomialThompsonSampling.jl")
 include("NeuralLinear.jl")
+include("NearestNeighboursUCB.jl")
 
 """
     fit!(model, X::AbstractMatrix, y::AbstractMatrix)
@@ -75,6 +76,8 @@ export AbstractBayesianLM,
     lasso_selection,
     LatentDriver,
     locate,
+    nearest_neighbours,
+    NearestNeighboursUCB,
     NeuralEncoder,
     NeuralLinear,
     Partition,

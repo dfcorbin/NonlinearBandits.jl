@@ -72,7 +72,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
         tol::Float64=1e-4,
         verbose_retrain::Bool=false,
     )
-        limits = Matrix{Float64}(undef, d, 2)
+        limits = repeat([0.0 0.0], d, 1)
         limits_cache = deepcopy(limits)
         data = BanditDataset(d)
         arms = Vector{PartitionedBayesPM}(undef, num_arms)
@@ -181,4 +181,9 @@ function update!(
             fit!(pol.arms[i], X1[:, a .== i], r[:, a .== i])
         end
     end
+end
+
+function predict(policy::PolynomialThompsonSampling, X::AbstractMatrix, a::Int64)
+    X1 = truncate_batch(policy.limits, X)
+    return policy.arms[a](X1)
 end
