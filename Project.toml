@@ -14,6 +14,7 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 
 [compat]
+CUDA = "3"
 Distributions = "0.25"
 GLMNet = "0.7"
 SpecialFunctions = "2"
