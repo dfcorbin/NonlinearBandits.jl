@@ -23,3 +23,11 @@ X, a, r = driver(batch_size)
 @test_throws(
     ArgumentError("num_batches and batch_size must be positive"), run!(0, 0, driver)
 )
+
+# Test latent driver
+tform = z -> 100 + z[1]
+driver = LatentDriver(csampler, policy, rsampler, tform)
+X, a, r = driver(1)
+@test 99 <= X[1, 1] <= 101
+
+

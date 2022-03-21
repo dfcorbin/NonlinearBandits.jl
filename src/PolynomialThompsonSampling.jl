@@ -1,18 +1,27 @@
+function truncate_batch(limits::Matrix{Float64}, X::AbstractMatrix)
+    X1 = deepcopy(X)
+    d, n = size(X1)
+    for i in 1:n, j in 1:d
+        X1[j, i] = max(limits[j, 1], X1[j, i])
+        X1[j, i] = min(limits[j, 2], X1[j, i])
+    end
+    return X1
+end
+
 """
-    PolynomialThompsonSampling(limits::Matrix{Float64}, num_arms::Int64, 
-                               initial_batches::Int64, retrain_freq::Int64;
-                               <keyword arguments>)
+    PolynomialThompsonSampling(d::Int64, num_arms::Int64, initial_batches::Int64,
+                               retrain_freq::Vector{Int64}; <keyword arguments>)
 
 Construct a Thompson sampling policy that uses a [`PartitionedBayesPM`](@ref) to
 model the expected rewards.
 
 # Arguments
 
-- `limits::Matrix{Float64}`: Matrix with two columns defining the lower/upper limits of the space.
+- `d::Int64`: The number of features.
 - `num_arms::Int64`: The number of available actions.
 - `inital_batches::Int64`: The number of batches to sample before training the polnomial
     models.
-- `retrain_freq::Int64`: The frequency (in terms of batches) at which the partition/basis
+- `retrain::Vector{Int64}`: The frequency (in terms of batches) at which the partition/basis
     selection is retrained from scratch.
 - `α::Float64=1.0`: Thompson sampling inflation. `α > 1` and increasing alpha increases the
     amount of exploration.
@@ -33,8 +42,9 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
     arms::Vector{PartitionedBayesPM}
     initial_batches::Int64
     α::Float64
-    retrain_freq::Int64
+    retrain::Vector{Int64}
     limits::Matrix{Float64}
+    limits_cache::Matrix{Float64}
 
     Jmax::Int64
     Pmax::Int64
@@ -47,10 +57,10 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
     verbose_retrain::Bool
 
     function PolynomialThompsonSampling(
-        limits::Matrix{Float64},
+        d::Int64,
         num_arms::Int64,
         initial_batches::Int64,
-        retrain_freq::Int64;
+        retrain::Vector{Int64};
         α::Float64=1.0,
         Jmax::Int64=3,
         Pmax::Int64=100,
@@ -62,7 +72,8 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
         tol::Float64=1e-4,
         verbose_retrain::Bool=false,
     )
-        d = size(limits, 1)
+        limits = Matrix{Float64}(undef, d, 2)
+        limits_cache = deepcopy(limits)
         data = BanditDataset(d)
         arms = Vector{PartitionedBayesPM}(undef, num_arms)
         return new(
@@ -72,8 +83,9 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
             arms,
             initial_batches,
             α,
-            retrain_freq,
+            retrain,
             limits,
+            limits_cache,
             Jmax,
             Pmax,
             Kmax,
@@ -100,11 +112,12 @@ function (pol::PolynomialThompsonSampling)(X::AbstractMatrix)
         return actions
     end
 
+    X1 = truncate_batch(pol.limits, X)
     thompson_samples = zeros(num_arms)
     for i in 1:n
         for a in 1:num_arms
             shape, scale = shape_scale(pol.arms[a])
-            x = X[:, i:i]
+            x = X1[:, i:i]
             k = locate(pol.arms[a].P, x)[1]
             varsim = rand(InverseGamma(shape, scale))
             β = pol.arms[a].models[k].lm.β
@@ -132,11 +145,20 @@ function update!(
     pol.t += size(X, 2)
     pol.batches += 1
     append_data!(pol.data, X, a, r)
+
+    for d in 1:size(X, 1)
+        lower = minimum(X[d, :])
+        upper = maximum(X[d, :])
+        pol.limits_cache[d, 1] = min(lower, pol.limits_cache[d, 1])
+        pol.limits_cache[d, 2] = max(upper, pol.limits_cache[d, 2])
+    end
+
     if pol.batches < pol.initial_batches
         return nothing
     end
-    if pol.batches % pol.retrain_freq == 0 || pol.batches == pol.initial_batches
+    if pol.batches in pol.retrain || pol.batches == pol.initial_batches
         for a in 1:length(pol.arms)
+            pol.limits = deepcopy(pol.limits_cache)
             Xa, ra = arm_data(pol.data, a)
             pol.arms[a] = PartitionedBayesPM(
                 Xa,
@@ -154,8 +176,9 @@ function update!(
             )
         end
     else
+        X1 = truncate_batch(pol.limits, X)
         for i in unique(a)
-            fit!(pol.arms[i], X[:, a .== i], r[:, a .== i])
+            fit!(pol.arms[i], X1[:, a .== i], r[:, a .== i])
         end
     end
 end
