@@ -7,7 +7,7 @@ num_arms = length(mf)
 
 csampler = UniformContexts(limits)
 rsampler = GaussianRewards(mf)
-policy = PolynomialThompsonSampling(d, num_arms, 5, 5; λ=10.0)
+policy = PolynomialThompsonSampling(d, num_arms, 5, [5 * i for i in 1:1000]; λ=10.0)
 driver = StandardDriver(csampler, policy, rsampler)
 num_batches, batch_size = 10, 500
 
