@@ -68,12 +68,12 @@ end
 
 function (driver::LatentDriver)(batch_size::Int64)
     Z = driver.csampler(batch_size)
-    a = driver.policy(Z)
+    X = mapslices(driver.tform, Z; dims=1)
+    a = driver.policy(X)
     r = driver.rsampler(Z, a)
     for met in driver.metrics
         met(Z, a, r)
     end
-    X = mapslices(driver.tform, Z; dims=1)
     return X, a, r
 end
 
