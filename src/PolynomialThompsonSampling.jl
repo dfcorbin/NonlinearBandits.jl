@@ -10,7 +10,7 @@ end
 
 """
     PolynomialThompsonSampling(d::Int64, num_arms::Int64, initial_batches::Int64,
-                               retrain_freq::Int64; <keyword arguments>)
+                               retrain_freq::Vector{Int64}; <keyword arguments>)
 
 Construct a Thompson sampling policy that uses a [`PartitionedBayesPM`](@ref) to
 model the expected rewards.
@@ -21,7 +21,7 @@ model the expected rewards.
 - `num_arms::Int64`: The number of available actions.
 - `inital_batches::Int64`: The number of batches to sample before training the polnomial
     models.
-- `retrain_freq::Int64`: The frequency (in terms of batches) at which the partition/basis
+- `retrain::Vector{Int64}`: The frequency (in terms of batches) at which the partition/basis
     selection is retrained from scratch.
 - `α::Float64=1.0`: Thompson sampling inflation. `α > 1` and increasing alpha increases the
     amount of exploration.
@@ -42,7 +42,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
     arms::Vector{PartitionedBayesPM}
     initial_batches::Int64
     α::Float64
-    retrain_freq::Int64
+    retrain::Vector{Int64}
     limits::Matrix{Float64}
     limits_cache::Matrix{Float64}
 
@@ -60,7 +60,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
         d::Int64,
         num_arms::Int64,
         initial_batches::Int64,
-        retrain_freq::Int64;
+        retrain::Vector{Int64};
         α::Float64=1.0,
         Jmax::Int64=3,
         Pmax::Int64=100,
@@ -83,7 +83,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
             arms,
             initial_batches,
             α,
-            retrain_freq,
+            retrain,
             limits,
             limits_cache,
             Jmax,
@@ -156,7 +156,7 @@ function update!(
     if pol.batches < pol.initial_batches
         return nothing
     end
-    if pol.batches % pol.retrain_freq == 0 || pol.batches == pol.initial_batches
+    if pol.batches in pol.retrain || pol.batches == pol.initial_batches
         for a in 1:length(pol.arms)
             pol.limits = deepcopy(pol.limits_cache)
             Xa, ra = arm_data(pol.data, a)
