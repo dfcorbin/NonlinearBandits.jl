@@ -48,3 +48,7 @@ end
 @testset "NeuralLinear.jl" begin
     include("test_NeuralLinear.jl")
 end
+
+@testset "NearestNeighboursUCB.jl" begin
+    include("test_NearestNeighboursUCB.jl")
+end

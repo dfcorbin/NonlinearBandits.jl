@@ -118,12 +118,12 @@ rsampler = GaussianRewards(mf)
 
 batch_size = 10 # Update linear model after ever 10 steps
 inital_batches = 1 # Initialise models after 1 batch
-retrain_freq = 10 # Retrain partition after every 10 batches
+retrain = [10 * i for i in 1:10000] # Retrain partition after every 10 batches
 policy = PolynomialThompsonSampling(
     limits, 
     num_arms, 
     inital_batches, 
-    retrain_freq;
+    retrain;
     λ=20.0, # Increase prior scaling for complex functions
     α=20.0, # Increase exploration for difficult problem
     tol=1e-3, # Regulate complexity of partition
