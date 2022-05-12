@@ -88,7 +88,7 @@ end
 
 """
     NeuralLinear(d::Int64, num_arms::Int64, layer_sizes::Vector{Int64}, inital_batches::Int64,
-                 retrain_freq::Int64, epochs::Int64)
+                 retrain::Vector{Int64}, epochs::Int64)
 
 NeuralLinear policy introduced in the paper [Deep Bayesian Bandits Showdown: An Empirical
 Comparison of Bayesian Deep Networks for Thompson Sampling](https://arxiv.org/abs/1802.09127).
@@ -110,9 +110,10 @@ mutable struct NeuralLinear{T1<:NeuralEncoder,T2} <: AbstractPolicy
     layer_sizes::Vector{Int64}
     enc::T1
     initial_batches::Int64
-    retrain_freq::Int64
+    retrain::Vector{Int64}
     epochs::Int64
     opt::T2
+    α::Float64
     λ::Float64
     shape0::Float64
     scale0::Float64
@@ -123,9 +124,10 @@ mutable struct NeuralLinear{T1<:NeuralEncoder,T2} <: AbstractPolicy
         num_arms::Int64,
         layer_sizes::Vector{Int64},
         inital_batches::Int64,
-        retrain_freq::Int64,
+        retrain::Vector{Int64},
         epochs::Int64;
         opt=ADAM(),
+        α::Float64=1.0,
         λ::Float64=1.0,
         shape0::Float64=1e-3,
         scale0::Float64=1e-3,
@@ -142,9 +144,10 @@ mutable struct NeuralLinear{T1<:NeuralEncoder,T2} <: AbstractPolicy
             layer_sizes,
             enc,
             inital_batches,
-            retrain_freq,
+            retrain,
             epochs,
             opt,
+            α,
             λ,
             shape0,
             scale0,
@@ -163,7 +166,7 @@ function update!(
     if pol.batches < pol.initial_batches
         return nothing
     end
-    if pol.batches % pol.retrain_freq == 0 || pol.batches == pol.initial_batches
+    if pol.batches in pol.retrain || pol.batches == pol.initial_batches
         pol.enc = NeuralEncoder(size(X, 1), length(pol.arms), pol.layer_sizes)
         fit!(
             pol.enc,
@@ -211,7 +214,7 @@ function (pol::NeuralLinear)(X::AbstractMatrix)
             z = Z[:, i]
             varsim = rand(InverseGamma(shape, scale))
             β = pol.arms[a].β
-            Σ = varsim * pol.arms[a].Σ
+            Σ = pol.α * varsim * pol.arms[a].Σ
             βsim = rand(MvNormal(β[:, 1], Σ))
             thompson_samples[a] = βsim' * z
         end

@@ -21,6 +21,7 @@ include("RandomPolicy.jl")
 include("PolynomialThompsonSampling.jl")
 include("NeuralLinear.jl")
 include("NearestNeighboursUCB.jl")
+include("GreedyPolynomial.jl")
 
 """
     fit!(model, X::AbstractMatrix, y::AbstractMatrix)
@@ -72,6 +73,7 @@ export AbstractBayesianLM,
     fit!,
     FunctionalRegret,
     GaussianRewards,
+    GreedyPolynomial,
     Index,
     lasso_selection,
     LatentDriver,

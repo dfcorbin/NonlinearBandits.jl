@@ -188,6 +188,7 @@ function _conditional_degree_selection!(
     models::Vector{BayesPM},
     model_cache::Vector{Array{BayesPM,3}},
     basis_cache::Vector{Vector{Index}},
+    λ_intercept::Float64,
     λ::Float64,
     shape0::Float64,
     scale0::Float64,
@@ -210,6 +211,10 @@ function _conditional_degree_selection!(
             models_cp[k] = BayesPM(
                 basis[idx], sub_limits; λ=λ, shape0=shape0, scale0=scale0
             )
+
+            # We assume the intercept doesn't shrink as volume decreases
+            models_cp[k].lm.Σ[1, 1] = models_cp[k].lm.Σ0[1, 1] = λ_intercept
+            models_cp[k].lm.Λ[1, 1] = models_cp[k].lm.Λ0[1, 1] = 1 / λ_intercept
             if n > 0
                 fit!(models_cp[k].lm, Z[idx, :], y)
             end
@@ -296,6 +301,7 @@ function PartitionedBayesPM(
         model_cache,
         basis_cache,
         λ,
+        λ,
         shape0,
         scale0,
         ratio,
@@ -342,6 +348,7 @@ function PartitionedBayesPM(
                     models,
                     model_cache,
                     basis_cache,
+                    λ,
                     λ * vol(left_lims) / space_vol,
                     shape0,
                     scale0,
@@ -359,6 +366,7 @@ function PartitionedBayesPM(
                     models,
                     model_cache,
                     basis_cache,
+                    λ,
                     λ * vol(right_lims) / space_vol,
                     shape0,
                     scale0,

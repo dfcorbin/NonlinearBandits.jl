@@ -20,3 +20,16 @@ function (sampler::UniformContexts)(n::Int64)
     end
     return X
 end
+
+struct WheelContexts <: AbstractContextSampler end
+
+function (sampler::WheelContexts)(n::Int64)
+    radius = sqrt.(rand(n))
+    angle = rand(n) * 2 * π
+    X = zeros(2, n)
+    for i in 1:n
+        X[1, i] = radius[i] * cos(angle[i])
+        X[2, i] = radius[i] * sin(angle[i])
+    end
+    return X
+end

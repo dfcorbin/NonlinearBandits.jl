@@ -1,47 +1,9 @@
-function truncate_batch(limits::Matrix{Float64}, X::AbstractMatrix)
-    X1 = deepcopy(X)
-    d, n = size(X1)
-    for i in 1:n, j in 1:d
-        X1[j, i] = max(limits[j, 1], X1[j, i])
-        X1[j, i] = min(limits[j, 2], X1[j, i])
-    end
-    return X1
-end
-
-"""
-    PolynomialThompsonSampling(d::Int64, num_arms::Int64, initial_batches::Int64,
-                               retrain::Vector{Int64}; <keyword arguments>)
-
-Construct a Thompson sampling policy that uses a [`PartitionedBayesPM`](@ref) to
-model the expected rewards.
-
-# Arguments
-
-- `d::Int64`: The number of features.
-- `num_arms::Int64`: The number of available actions.
-- `inital_batches::Int64`: The number of batches to sample before training the polnomial
-    models.
-- `retrain::Vector{Int64}`: The frequency (in terms of batches) at which the partition/basis
-    selection is retrained from scratch.
-- `α::Float64=1.0`: Thompson sampling inflation. `α > 1` and increasing alpha increases the
-    amount of exploration.
-- `Jmax::Int64=3`: The maximum degree of any polynomial region.
-- `Pmax::Int64=100`: The maximum number of features in any polynomial region.
-- `Kmax::Int64=500`: The maximum number of regions in the partition.
-- `λ::Float64=1.0`: Prior scaling.
-- `shape0::Float64=1e-3`: Inverse-gamma prior shape hyperparameter.
-- `scale0::Float64=1e-3`: Inverse-gamma prior scale hyperparameter.
-- `ratio::Float64=1.0`: Polynomial degrees are reduced until `size(X, 2) < ratio * length(tpbasis(d, J))`.
-- `tol::Float64=1e-3`: The required increase in the model evidence to accept a split.
-- `verbose_retrain::Bool=true`: Print details of the partition search.
-"""
-mutable struct PolynomialThompsonSampling <: AbstractPolicy
+mutable struct GreedyPolynomial <: AbstractPolicy
     t::Int64
     batches::Int64
     data::BanditDataset
     arms::Vector{PartitionedBayesPM}
     initial_batches::Int64
-    α::Float64
     retrain::Vector{Int64}
     limits::Matrix{Float64}
     limits_cache::Matrix{Float64}
@@ -56,12 +18,11 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
     tol::Float64
     verbose_retrain::Bool
 
-    function PolynomialThompsonSampling(
+    function GreedyPolynomial(
         d::Int64,
         num_arms::Int64,
         initial_batches::Int64,
         retrain::Vector{Int64};
-        α::Float64=1.0,
         Jmax::Int64=3,
         Pmax::Int64=100,
         Kmax::Int64=500,
@@ -82,7 +43,6 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
             data,
             arms,
             initial_batches,
-            α,
             retrain,
             limits,
             limits_cache,
@@ -99,7 +59,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
     end
 end
 
-function (pol::PolynomialThompsonSampling)(X::AbstractMatrix)
+function (pol::GreedyPolynomial)(X::AbstractMatrix)
     n = size(X, 2)
     num_arms = length(pol.arms)
     actions = zeros(Int64, n)
@@ -113,31 +73,18 @@ function (pol::PolynomialThompsonSampling)(X::AbstractMatrix)
     end
 
     X1 = truncate_batch(pol.limits, X)
-    thompson_samples = zeros(num_arms)
+    preds = zeros(num_arms)
     for i in 1:n
         for a in 1:num_arms
-            shape, scale = shape_scale(pol.arms[a])
-            x = X1[:, i:i]
-            k = locate(pol.arms[a].P, x)[1]
-            varsim = rand(InverseGamma(shape, scale))
-            β = pol.arms[a].models[k].lm.β
-            Σ = pol.α * varsim * pol.arms[a].models[k].lm.Σ
-            βsim = rand(MvNormal(β[:, 1], Σ))
-            z = expand(
-                x,
-                pol.arms[a].models[k].basis,
-                pol.arms[a].P.regions[k];
-                J=pol.arms[a].models[k].J,
-            )
-            thompson_samples[a] = βsim' * z[:, 1]
+            preds[a] = X1[:, i:i][1, 1]
         end
-        actions[i] = argmax(thompson_samples)
+        actions[i] = argmax(preds)
     end
     return actions
 end
 
 function update!(
-    pol::PolynomialThompsonSampling,
+    pol::GreedyPolynomial,
     X::AbstractMatrix,
     a::AbstractVector{<:Int},
     r::AbstractMatrix,
@@ -183,7 +130,7 @@ function update!(
     end
 end
 
-function predict(policy::PolynomialThompsonSampling, X::AbstractMatrix, a::Int64)
+function predict(policy::GreedyPolynomial, X::AbstractMatrix, a::Int64)
     X1 = truncate_batch(policy.limits, X)
     return policy.arms[a](X1)
 end
