@@ -184,6 +184,7 @@ function _conditional_degree_selection!(
     lateral::Int64, # Lateral index of model cache
     sub_limits::Matrix{Float64}, # Limits of the new polynomial
     Jmax::Int64,
+    Jmin::Int64,
     Pmax::Int64,
     models::Vector{BayesPM},
     model_cache::Vector{Array{BayesPM,3}},
@@ -198,8 +199,8 @@ function _conditional_degree_selection!(
     best_ev = -Inf
     best_pm::Union{Nothing,BayesPM} = nothing
     models_cp = deepcopy(models)
-    for J in 0:Jmax
-        if J > 0 && n < ratio * length(basis_cache[J + 1])
+    for J in Jmin:Jmax
+        if J > Jmin && n < ratio * length(basis_cache[J + 1])
             continue
         end
         if !isassigned(model_cache[k], d, lateral, J + 1)
@@ -242,6 +243,7 @@ Perform a 1-step look ahead greedy search for a partitioned polynomial model.
 
 # Keyword Arguments
 - `Jmax::Int64=3`: The maximum degree of any polynomial model.
+- `Jmin::Int64=0`: The minimum degree of any polynomial model.
 - `Pmax::Int64=500`: The maximum number of features in a particular regions.
 - `Kmax::Int64=200`: The maximum number of regions
 - `λ::Float64=1.0`: Prior scaling.
@@ -256,6 +258,7 @@ function PartitionedBayesPM(
     y::AbstractMatrix,
     limits::Matrix{Float64};
     Jmax::Int64=3,
+    Jmin::Int64=0,
     Pmax::Int64=500,
     Kmax::Int64=200,
     λ::Float64=1.0,
@@ -269,8 +272,8 @@ function PartitionedBayesPM(
     check_limits(limits)
     if size(X, 1) != size(limits, 1)
         throw(ArgumentError("X and limits don't match in their first dimension"))
-    elseif Jmax < 0
-        throw(ArgumentError("Jmax must be non-negative"))
+    elseif Jmax < 0 || Jmin < 0 || Jmin > Jmax
+        throw(ArgumentError("must have that 0 ≤ Jmin ≤ Jmax"))
     elseif Kmax <= 0
         throw(ArgumentError("Kmax must be strictly positive"))
     elseif tol < 0.0
@@ -296,6 +299,7 @@ function PartitionedBayesPM(
         1,
         limits,
         Jmax,
+        Jmin,
         Pmax,
         models,
         model_cache,
@@ -344,6 +348,7 @@ function PartitionedBayesPM(
                     1,
                     left_lims,
                     Jmax,
+                    Jmin,
                     Pmax,
                     models,
                     model_cache,
@@ -362,6 +367,7 @@ function PartitionedBayesPM(
                     2,
                     right_lims,
                     Jmax,
+                    Jmin,
                     Pmax,
                     models,
                     model_cache,

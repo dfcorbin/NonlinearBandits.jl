@@ -72,6 +72,13 @@ function fit!(lm::BayesLM, X::AbstractMatrix, y::AbstractMatrix)
     β = Σ * (X * y' + lm.Λ * lm.β)
     shape = lm.shape + size(y, 2) / 2
     scale = lm.scale + 0.5 * (y * y' - β' * Λ * β + lm.β' * lm.Λ * lm.β)[1, 1]
+    if scale <= 0
+        println("------------------")
+        println(β' * Λ * β)
+        println()
+        println(lm.β' * lm.Λ * lm.β)
+        println("------------------")
+    end
     return lm.shape, lm.scale, lm.β, lm.Σ, lm.Λ = shape, scale, β, Σ, Λ
 end
 

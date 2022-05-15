@@ -47,6 +47,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
     limits_cache::Matrix{Float64}
 
     Jmax::Int64
+    Jmin::Int64
     Pmax::Int64
     Kmax::Int64
     λ::Float64
@@ -63,6 +64,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
         retrain::Vector{Int64};
         α::Float64=1.0,
         Jmax::Int64=3,
+        Jmin::Int64=0,
         Pmax::Int64=100,
         Kmax::Int64=500,
         λ::Float64=1.0,
@@ -87,6 +89,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
             limits,
             limits_cache,
             Jmax,
+            Jmin,
             Pmax,
             Kmax,
             λ,
@@ -165,6 +168,7 @@ function update!(
                 ra,
                 pol.limits;
                 Jmax=pol.Jmax,
+                Jmin=pol.Jmin,
                 Pmax=pol.Pmax,
                 Kmax=pol.Kmax,
                 λ=pol.λ,

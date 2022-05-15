@@ -4,7 +4,7 @@ using Flux:
     relu, Chain, Dense, gpu, @epochs, train!, ADAM, DataLoader, throttle, params, cpu
 using Distributions: Uniform, Normal, loggamma, InverseGamma, MvNormal
 using GLMNet: glmnet
-using LinearAlgebra: Hermitian, diagm, logdet
+using LinearAlgebra: Hermitian, diagm, logdet, isposdef
 using Random: randperm
 using Suppressor: @suppress
 
