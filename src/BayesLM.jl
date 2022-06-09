@@ -31,9 +31,7 @@ mutable struct BayesLM <: AbstractBayesianLM
             msg = "d, shape0 and scale0 must be strictly positive"
             throw(ArgumentError(msg))
         end
-        β0, Σ0, Λ0 = zeros(d, 1),
-        Hermitian(diagm(ones(d)) * λ),
-        Hermitian(diagm(ones(d)) / λ)
+        β0, Σ0, Λ0 = zeros(d, 1), Hermitian(diagm(ones(d)) * (λ^2)), Hermitian(diagm(ones(d)) / (λ^2))
         β, Σ, Λ = deepcopy(β0), deepcopy(Σ0), deepcopy(Λ0)
         return new(shape0, scale0, β0, Σ0, Λ0, shape0, scale0, β, Σ, Λ)
     end
@@ -72,13 +70,6 @@ function fit!(lm::BayesLM, X::AbstractMatrix, y::AbstractMatrix)
     β = Σ * (X * y' + lm.Λ * lm.β)
     shape = lm.shape + size(y, 2) / 2
     scale = lm.scale + 0.5 * (y * y' - β' * Λ * β + lm.β' * lm.Λ * lm.β)[1, 1]
-    if scale <= 0
-        println("------------------")
-        println(β' * Λ * β)
-        println()
-        println(lm.β' * lm.Λ * lm.β)
-        println("------------------")
-    end
     return lm.shape, lm.scale, lm.β, lm.Σ, lm.Λ = shape, scale, β, Σ, Λ
 end
 

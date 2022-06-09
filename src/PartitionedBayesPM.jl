@@ -197,13 +197,13 @@ function _conditional_degree_selection!(
 )
     n = size(X, 2)
     best_ev = -Inf
-    best_pm::Union{Nothing,BayesPM} = nothing
+    local best_pm
     models_cp = deepcopy(models)
     for J in Jmin:Jmax
         if J > Jmin && n < ratio * length(basis_cache[J + 1])
             continue
         end
-        if !isassigned(model_cache[k], d, lateral, J + 1)
+        if d == lateral == 0 || !isassigned(model_cache[k], d, lateral, J + 1)
             # Polynomial not found in cache, fit a new degree J polynmomial
             # and store it.
             basis = basis_cache[J + 1]
@@ -214,12 +214,14 @@ function _conditional_degree_selection!(
             )
 
             # We assume the intercept doesn't shrink as volume decreases
-            models_cp[k].lm.Σ[1, 1] = models_cp[k].lm.Σ0[1, 1] = λ_intercept
-            models_cp[k].lm.Λ[1, 1] = models_cp[k].lm.Λ0[1, 1] = 1 / λ_intercept
+            models_cp[k].lm.Σ[1, 1] = models_cp[k].lm.Σ0[1, 1] = λ_intercept^2
+            models_cp[k].lm.Λ[1, 1] = models_cp[k].lm.Λ0[1, 1] = 1 / λ_intercept^2
             if n > 0
                 fit!(models_cp[k].lm, Z[idx, :], y)
             end
-            model_cache[k][d, lateral, J + 1] = models_cp[k]
+            if !(d == lateral == 0)
+                model_cache[k][d, lateral, J + 1] = models_cp[k]
+            end
         else
             # Polynomial found in cache.
             models_cp[k] = model_cache[k][d, lateral, J + 1]
@@ -295,8 +297,8 @@ function PartitionedBayesPM(
         X,
         y,
         1,
-        1,
-        1,
+        0,
+        0,
         limits,
         Jmax,
         Jmin,

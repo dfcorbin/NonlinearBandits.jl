@@ -41,7 +41,7 @@ metrics = (FunctionalRegret(mf),)
 batch_size = 1000
 num_batches = 3
 initial_batches = retrain_freq = 1
-nl = NeuralLinear(d, length(mf), layer_sizes, initial_batches, retrain_freq, 20)
+nl = NeuralLinear(d, length(mf), layer_sizes, initial_batches, [1:num_batches...], 20)
 metrics = (FunctionalRegret(mf),)
 driver = StandardDriver(csampler, nl, rsampler, metrics)
 run!(num_batches, batch_size, driver)

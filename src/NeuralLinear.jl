@@ -30,7 +30,7 @@ mutable struct NeuralEncoder{T1<:Chain,T2<:Function}
                 push!(enc, Dense(layer_sizes[i - 1], layer_sizes[i], relu))
             end
         end
-        nn = Chain(; enc=gpu(Chain(enc...)), dec=gpu(Dense(layer_sizes[end], d_out)))
+        nn = Chain(enc=gpu(Chain(enc...)), dec=gpu(Dense(layer_sizes[end], d_out)))
 
         # Create partial loss function
         function loss(X::AbstractMatrix, A::AbstractMatrix, r::AbstractMatrix)
@@ -45,7 +45,7 @@ end
 
 function (enc::NeuralEncoder)(X::AbstractArray)
     X = gpu(X)
-    return cpu(enc.nn[:enc](X))
+    return convert(Matrix{Float64}, cpu(enc.nn[:enc](X)))
 end
 
 """
@@ -105,7 +105,12 @@ Comparison of Bayesian Deep Networks for Thompson Sampling](https://arxiv.org/ab
 mutable struct NeuralLinear{T1<:NeuralEncoder,T2} <: AbstractPolicy
     t::Int64
     batches::Int64
-    data::BanditDataset
+    Xs::Vector{Matrix{Float64}}
+    Zs::Vector{Matrix{Float64}}
+    rs::Vector{Matrix{Float64}}
+    X::Matrix{Float64}
+    a::Vector{Int64}
+    r::Matrix{Float64}
     arms::Vector{BayesLM}
     layer_sizes::Vector{Int64}
     enc::T1
@@ -133,13 +138,24 @@ mutable struct NeuralLinear{T1<:NeuralEncoder,T2} <: AbstractPolicy
         scale0::Float64=1e-3,
         verbose_retrain::Bool=false,
     )
-        arms = Vector{BayesLM}(undef, num_arms)
+        arms = [BayesLM(layer_sizes[end], λ=λ, shape0=shape0, scale0=scale0) for a in 1:num_arms]
         enc = NeuralEncoder(d, num_arms, layer_sizes)
-        data = BanditDataset(d)
+        Xs = [Matrix{Float64}(undef, d, 0) for a in 1:num_arms]
+        Zs = [Matrix{Float64}(undef, layer_sizes[end], 0) for a in 1:num_arms]
+        rs = [Matrix{Float64}(undef, 1, 0) for a in 1:num_arms]
+        X = Matrix{Float64}(undef, d, 0)
+        a = Vector{Int64}(undef, 0)
+        r = Matrix{Float64}(undef, 1, 0)
+
         return new{typeof(enc),typeof(opt)}(
             0,
             0,
-            data,
+            Xs,
+            Zs,
+            rs,
+            X,
+            a,
+            r,
             arms,
             layer_sizes,
             enc,
@@ -162,33 +178,46 @@ function update!(
     check_regression_data(X, r)
     pol.t += size(X, 2)
     pol.batches += 1
-    append_data!(pol.data, X, a, r)
+    for i in unique(a)
+        Xa, ra = X[:, a .== i], r[:, a .== i]
+        Za = pol.enc(Xa)
+        pol.Xs[i] = hcat(pol.Xs[i], Xa)
+        pol.Zs[i] = hcat(pol.Zs[i], Za)
+        pol.rs[i] = hcat(pol.rs[i], ra)
+        pol.X = hcat(pol.X, X)
+        pol.a = vcat(pol.a, a)
+        pol.r = hcat(pol.r, r)
+    end
+
     if pol.batches < pol.initial_batches
         return nothing
     end
-    if pol.batches in pol.retrain || pol.batches == pol.initial_batches
+    retrain_cond = pol.batches in pol.retrain || pol.batches == pol.initial_batches
+    if retrain_cond
         pol.enc = NeuralEncoder(size(X, 1), length(pol.arms), pol.layer_sizes)
         fit!(
             pol.enc,
-            pol.data.X,
-            pol.data.a,
-            pol.data.r,
+            pol.X,
+            pol.a,
+            pol.r,
             pol.epochs;
             opt=pol.opt,
             verbose=pol.verbose_retrain,
         )
-        for a in 1:length(pol.arms)
-            Xa, ra = arm_data(pol.data, a)
-            Za = pol.enc(Xa)
-            pol.arms[a] = BayesLM(
-                size(Za, 1); λ=pol.λ, shape0=pol.shape0, scale0=pol.scale0
-            )
-            fit!(pol.arms[a], Za, ra)
+        for i in 1:length(pol.arms)
+            pol.Zs[i] = pol.enc(pol.Xs[i])
         end
-    else
-        Z = pol.enc(X)
-        for i in unique(a)
-            fit!(pol.arms[i], Z[:, a .== i], r[:, a .== i])
+    end
+    if pol.batches >= pol.initial_batches
+        to_update = retrain_cond ? [1:length(pol.arms)...] : unique(a)
+        for i in to_update
+            pol.arms[i].Λ = Hermitian(pol.Zs[i] * pol.Zs[i]' + pol.arms[i].Λ0)
+            pol.arms[i].Σ = inv(pol.arms[i].Λ)
+            pol.arms[i].β = pol.arms[i].Σ * pol.Zs[i] * pol.rs[i]'
+            pol.arms[i].shape = pol.arms[i].shape0 + size(pol.Zs[i], 2) / 2
+            pol.arms[i].scale = pol.arms[i].scale0 + 0.5 * (
+                pol.rs[i] * pol.rs[i]' - pol.arms[i].β' * pol.arms[i].Λ * pol.arms[i].β
+            )[1, 1]
         end
     end
 end
@@ -215,10 +244,17 @@ function (pol::NeuralLinear)(X::AbstractMatrix)
             varsim = rand(InverseGamma(shape, scale))
             β = pol.arms[a].β
             Σ = pol.α * varsim * pol.arms[a].Σ
-            βsim = rand(MvNormal(β[:, 1], Σ))
+            local βsim
+            try
+                βsim = rand(MvNormal(β[:, 1], Σ))
+            catch err
+                @warn "Thompson sampling failed: $err"
+                βsim = rand(Normal(0, 1), size(β))
+            end
             thompson_samples[a] = βsim' * z
         end
         actions[i] = argmax(thompson_samples)
     end
     return actions
 end
+
