@@ -105,7 +105,7 @@ function expand(
     X::AbstractMatrix,
     basis::Vector{Index},
     limits::Matrix{Float64};
-    J::Union{Nothing,Int64}=nothing,
+    J::Union{Nothing,Int64}=nothing
 )
     check_limits(limits)
     if size(limits, 1) != size(X, 1)
@@ -125,9 +125,9 @@ function expand(
             p1 = p0 = 1.0
             x = (2 * X[l, i] - limits[l, 1] - limits[l, 2]) / (limits[l, 2] - limits[l, 1])
             for j in 0:J
-                U[j + 1, l] = legendre_next(x, j, p1, p0)
+                U[j+1, l] = legendre_next(x, j, p1, p0)
                 p0 = p1
-                p1 = U[j + 1, l]
+                p1 = U[j+1, l]
             end
         end
 
@@ -136,7 +136,7 @@ function expand(
             for l in 1:length(basis[b].dim)
                 ud = basis[b].dim[l]
                 uj = basis[b].deg[l]
-                Y[b, i] *= U[uj + 1, ud]
+                Y[b, i] *= U[uj+1, ud]
             end
         end
     end
@@ -165,8 +165,8 @@ mutable struct BayesPM <: AbstractBayesianLM
         basis::Vector{Index},
         limits::Matrix{Float64};
         λ::Float64=1.0,
-        shape0::Float64=1e-3,
-        scale0::Float64=1e-3,
+        shape0::Float64=0.01,
+        scale0::Float64=0.01
     )
         check_limits(limits)
         lm = BayesLM(length(basis); λ=λ, shape0=shape0, scale0=scale0)

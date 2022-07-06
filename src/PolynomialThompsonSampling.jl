@@ -47,7 +47,6 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
     limits_cache::Matrix{Float64}
 
     Jmax::Int64
-    Jmin::Int64
     Pmax::Int64
     Kmax::Int64
     λ::Float64
@@ -64,7 +63,6 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
         retrain::Vector{Int64};
         α::Float64=1.0,
         Jmax::Int64=3,
-        Jmin::Int64=0,
         Pmax::Int64=100,
         Kmax::Int64=500,
         λ::Float64=1.0,
@@ -72,7 +70,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
         scale0::Float64=1e-3,
         ratio::Float64=1.0,
         tol::Float64=1e-3,
-        verbose_retrain::Bool=false,
+        verbose_retrain::Bool=false
     )
         limits = repeat([0.0 0.0], d, 1)
         limits_cache = deepcopy(limits)
@@ -89,7 +87,6 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
             limits,
             limits_cache,
             Jmax,
-            Jmin,
             Pmax,
             Kmax,
             λ,
@@ -130,7 +127,7 @@ function (pol::PolynomialThompsonSampling)(X::AbstractMatrix)
                 x,
                 pol.arms[a].models[k].basis,
                 pol.arms[a].P.regions[k];
-                J=pol.arms[a].models[k].J,
+                J=pol.arms[a].models[k].J
             )
             thompson_samples[a] = βsim' * z[:, 1]
         end
@@ -168,7 +165,6 @@ function update!(
                 ra,
                 pol.limits;
                 Jmax=pol.Jmax,
-                Jmin=pol.Jmin,
                 Pmax=pol.Pmax,
                 Kmax=pol.Kmax,
                 λ=pol.λ,
@@ -176,13 +172,13 @@ function update!(
                 scale0=pol.scale0,
                 ratio=pol.ratio,
                 tol=pol.tol,
-                verbose=pol.verbose_retrain,
+                verbose=pol.verbose_retrain
             )
         end
     else
         X1 = truncate_batch(pol.limits, X)
         for i in unique(a)
-            fit!(pol.arms[i], X1[:, a .== i], r[:, a .== i])
+            fit!(pol.arms[i], X1[:, a.==i], r[:, a.==i])
         end
     end
 end

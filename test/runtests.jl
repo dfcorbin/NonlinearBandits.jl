@@ -41,7 +41,7 @@ end
     include("test_drivers.jl")
 end
 
-@testset "PolynomialThompsonSampling." begin
+@testset "PolynomialThompsonSampling.jl" begin
     include("test_PolynomialThompsonSampling.jl")
 end
 

@@ -107,8 +107,8 @@ function PartitionedBayesPM(
     P::Partition,
     Js::Vector{Int64};
     λ::Float64=1.0,
-    shape0::Float64=1e-3,
-    scale0::Float64=1e-3,
+    shape0::Float64=0.01,
+    scale0::Float64=0.01
 )
     if length(P.regions) != length(Js)
         throw(ArgumentError("must supply a value of J for every region in P"))
@@ -134,32 +134,41 @@ function fit!(ppm::PartitionedBayesPM, X::AbstractMatrix, y::AbstractMatrix)
     return ppm.shape += size(X, 2) / 2
 end
 
-"""
-    lasso_selection(X::AbstractMatrix, y::AbstractMatrix, Pmax::Int64, intercept::Bool)
-
-Choose the first `Pmax` features introduced by a LASSO solution path.
-
-# Arguments
-
-- `X::AbstractMatrix`: A matrix with observations stored as columns.
-- `y::AbstractMatrix`: A matrix with 1 row of response variables. 
-- `Pmax::Int64`: The maximum number of predictors.
-- `intercept::Bool`: `true` if the first row of `X` are the intercept features
-"""
-function lasso_selection(X::AbstractMatrix, y::AbstractMatrix, Pmax::Int64, intercept::Bool)
-    if size(X, 1) <= Pmax
-        return [1:size(X, 1)...]
+function lasso_bayespm(
+    X::Matrix{Float64},
+    y::Matrix{Float64},
+    basis_cache::Vector{Vector{Index}},
+    min_obs::Vector{Float64},
+    limits::Matrix{Float64},
+    λ::Float64,
+    λ_intercept::Float64,
+    shape0::Float64,
+    scale0::Float64,
+    Pmax::Int64,
+)
+    b = findlast(size(X, 2) .>= min_obs)
+    basis = basis_cache[b]
+    Z = expand(X, basis, limits)
+    if length(basis) <= Pmax
+        basis_idx = collect(1:length(basis))
+    elseif Pmax == 1
+        basis_idx = [1]
+    else
+        path = @suppress glmnet(Z[2:end, :]', y[1, :]).betas
+        num_params = [sum(path[:, i] .!= 0) for i in 1:size(path, 2)]
+        coefs = path[:, findlast(num_params .<= Pmax - 1)]
+        basis_idx = collect(2:length(basis))[coefs.!=0]
+        pushfirst!(basis_idx, 1)
     end
-    X, Pmax = intercept ? (X[2:end, :], Pmax - 1) : (X, Pmax)
-    β = @suppress glmnet(X', y[1, :]; pmax=Pmax).betas[:, end]
-    indices = intercept ? [1] : Int64[]
-    @inbounds for j in 1:length(β)
-        if β[j] != 0.0
-            i = intercept ? j + 1 : j
-            push!(indices, i)
-        end
+    basis = basis[basis_idx]
+    Z = Z[basis_idx, :]
+    pm = BayesPM(basis, limits, λ=λ, shape0=shape0, scale0=scale0)
+    pm.lm.Σ[1, 1] = pm.lm.Σ0[1, 1] = λ_intercept^2
+    pm.lm.Λ[1, 1] = pm.lm.Λ0[1, 1] = 1 / λ_intercept^2
+    if size(Z, 2) > 0
+        fit!(pm.lm, Z, y)
     end
-    return indices
+    return pm
 end
 
 function evidence(models::Vector{BayesPM}, shape0::Float64, scale0::Float64)
@@ -174,65 +183,6 @@ function evidence(models::Vector{BayesPM}, shape0::Float64, scale0::Float64)
     ev += shape0 * log(scale0) - shape * log(scale)
     ev += loggamma(shape) - loggamma(shape0)
     return ev
-end
-
-function _conditional_degree_selection!(
-    X::AbstractMatrix, # Data to train new polynomial
-    y::AbstractMatrix, # Data to train new polynomial
-    k::Int64, # Subregion to be replaced
-    d::Int64, # Dimension index of model cache
-    lateral::Int64, # Lateral index of model cache
-    sub_limits::Matrix{Float64}, # Limits of the new polynomial
-    Jmax::Int64,
-    Jmin::Int64,
-    Pmax::Int64,
-    models::Vector{BayesPM},
-    model_cache::Vector{Array{BayesPM,3}},
-    basis_cache::Vector{Vector{Index}},
-    λ_intercept::Float64,
-    λ::Float64,
-    shape0::Float64,
-    scale0::Float64,
-    ratio::Float64,
-)
-    n = size(X, 2)
-    best_ev = -Inf
-    local best_pm
-    models_cp = deepcopy(models)
-    for J in Jmin:Jmax
-        if J > Jmin && n < ratio * length(basis_cache[J + 1])
-            continue
-        end
-        if d == lateral == 0 || !isassigned(model_cache[k], d, lateral, J + 1)
-            # Polynomial not found in cache, fit a new degree J polynmomial
-            # and store it.
-            basis = basis_cache[J + 1]
-            Z = expand(X, basis, sub_limits; J=J)
-            idx = lasso_selection(Z, y, Pmax, true)
-            models_cp[k] = BayesPM(
-                basis[idx], sub_limits; λ=λ, shape0=shape0, scale0=scale0
-            )
-
-            # We assume the intercept doesn't shrink as volume decreases
-            models_cp[k].lm.Σ[1, 1] = models_cp[k].lm.Σ0[1, 1] = λ_intercept^2
-            models_cp[k].lm.Λ[1, 1] = models_cp[k].lm.Λ0[1, 1] = 1 / λ_intercept^2
-            if n > 0
-                fit!(models_cp[k].lm, Z[idx, :], y)
-            end
-            if !(d == lateral == 0)
-                model_cache[k][d, lateral, J + 1] = models_cp[k]
-            end
-        else
-            # Polynomial found in cache.
-            models_cp[k] = model_cache[k][d, lateral, J + 1]
-        end
-        ev = evidence(models_cp, shape0, scale0)
-        if ev > best_ev
-            best_ev = ev
-            best_pm = models_cp[k]
-        end
-    end
-    return best_pm
 end
 
 vol(limits::Matrix{Float64}) = prod(limits[:, 2] - limits[:, 1])
@@ -259,23 +209,22 @@ function PartitionedBayesPM(
     X::AbstractMatrix,
     y::AbstractMatrix,
     limits::Matrix{Float64};
-    Jmax::Int64=3,
-    Jmin::Int64=0,
-    Pmax::Int64=500,
+    Jmax::Int64=5,
+    Pmax::Int64=15,
     Kmax::Int64=200,
     λ::Float64=1.0,
-    shape0::Float64=1e-3,
-    scale0::Float64=1e-3,
+    shape0::Float64=0.01,
+    scale0::Float64=0.01,
     ratio::Float64=1.0,
-    tol::Float64=1e-4,
-    verbose::Bool=true,
+    tol::Float64=1e-3,
+    verbose::Bool=true
 )
     check_regression_data(X, y)
     check_limits(limits)
     if size(X, 1) != size(limits, 1)
         throw(ArgumentError("X and limits don't match in their first dimension"))
-    elseif Jmax < 0 || Jmin < 0 || Jmin > Jmax
-        throw(ArgumentError("must have that 0 ≤ Jmin ≤ Jmax"))
+    elseif Jmax < 0
+        throw(ArgumentError("must have non-negative Jmax"))
     elseif Kmax <= 0
         throw(ArgumentError("Kmax must be strictly positive"))
     elseif tol < 0.0
@@ -284,35 +233,14 @@ function PartitionedBayesPM(
 
     P = Partition(limits)
     idx = ones(Int64, size(X, 2))
-    model_cache = [Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1)]
+    model_cache = [Array{BayesPM,2}(undef, size(X, 1), 2)]
     basis_cache = [tpbasis(size(X, 1), J) for J in 0:Jmax]
     models = Vector{BayesPM}(undef, 1)
     space_vol = vol(limits)
 
-    # Set up the intial polynomial for the full space and clear the cache.
-    # We don't need to cache the inital entry as we have already accepted it.
-    # The cache indices supplied to _conditional_degree_selection! are just
-    # placeholders
-    models[1] = _conditional_degree_selection!(
-        X,
-        y,
-        1,
-        0,
-        0,
-        limits,
-        Jmax,
-        Jmin,
-        Pmax,
-        models,
-        model_cache,
-        basis_cache,
-        λ,
-        λ,
-        shape0,
-        scale0,
-        ratio,
-    )
-    model_cache[1] = Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1)
+    min_obs = [length(b) * ratio for b in basis_cache]
+    min_obs[1] = 0
+    models[1] = lasso_bayespm(X, y, basis_cache, min_obs, limits, λ, λ, shape0, scale0, Pmax)
     ev = evidence(models, shape0, scale0)
 
     while length(models) < Kmax
@@ -322,7 +250,6 @@ function PartitionedBayesPM(
         for k in randperm(K)
             # Iterate over every subregion and test to see if any split
             # improves the model evidence beyond the tolerance.
-
             count += 1
             best = Dict{String,Any}("ev" => ev + tol)
             models_cp = deepcopy(models)
@@ -333,7 +260,6 @@ function PartitionedBayesPM(
                 # Region k is split in every dimension and two polynomials are fitted
                 # to the resulting subregions. The best details of the best dimensional
                 # split are stored in the dictionary `best`
-
                 if verbose
                     msg = "\rRegion = $count/$K; Dimension = $d/$(size(X, 1)); Evidence = $ev"
                     print(msg)
@@ -342,53 +268,40 @@ function PartitionedBayesPM(
                 left_lims, right_lims = deepcopy(P.regions[k]), deepcopy(P.regions[k])
                 left_lims[d, 2], right_lims[d, 1] = loc, loc
                 left_region_mask = Xk[d, :] .< loc
-                left_pm = _conditional_degree_selection!(
-                    Xk[:, left_region_mask],
-                    yk[:, left_region_mask],
-                    k,
-                    d,
-                    1,
-                    left_lims,
-                    Jmax,
-                    Jmin,
-                    Pmax,
-                    models,
-                    model_cache,
-                    basis_cache,
-                    λ,
-                    λ * vol(left_lims) / space_vol,
-                    shape0,
-                    scale0,
-                    ratio,
-                )
-                right_pm = _conditional_degree_selection!(
-                    Xk[:, .!left_region_mask],
-                    yk[:, .!left_region_mask],
-                    k,
-                    d,
-                    2,
-                    right_lims,
-                    Jmax,
-                    Jmin,
-                    Pmax,
-                    models,
-                    model_cache,
-                    basis_cache,
-                    λ,
-                    λ * vol(right_lims) / space_vol,
-                    shape0,
-                    scale0,
-                    ratio,
-                )
-                models_cp[k] = left_pm
-                models_cp[end] = right_pm
+                if !(isassigned(basis_cache[k], d, 1) && isassigned(basis_cache[k], d, 2))
+                    model_cache[k][d, 1] = lasso_bayespm(
+                        Xk[:, left_region_mask],
+                        yk[:, left_region_mask],
+                        basis_cache,
+                        min_obs,
+                        left_lims,
+                        λ,
+                        λ * vol(left_lims) / space_vol,
+                        shape0,
+                        scale0,
+                        Pmax,
+                    )
+                    model_cache[k][d, 2] = lasso_bayespm(
+                        Xk[:, .!left_region_mask],
+                        yk[:, .!left_region_mask],
+                        basis_cache,
+                        min_obs,
+                        right_lims,
+                        λ,
+                        λ * vol(right_lims) / space_vol,
+                        shape0,
+                        scale0,
+                        Pmax
+                    )
+                end
+                models_cp[k], models_cp[end] = model_cache[k][d, 1], model_cache[k][d, 2]
                 tmp_ev = evidence(models_cp, shape0, scale0)
                 if tmp_ev > best["ev"] >= ev + tol
                     accepted = true
                     best["ev"] = tmp_ev
                     best["d"] = d
                     best["left_region_mask"] = left_region_mask
-                    best["left_pm"], best["right_pm"] = left_pm, right_pm
+                    best["left_pm"], best["right_pm"] = model_cache[k][d, 1], model_cache[k][d, 2]
                 end
             end
             if accepted
@@ -396,8 +309,8 @@ function PartitionedBayesPM(
                 # cache entry for the additional region.
                 models[k] = best["left_pm"]::BayesPM
                 push!(models, best["right_pm"]::BayesPM)
-                model_cache[k] = Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1)
-                push!(model_cache, Array{BayesPM,3}(undef, size(X, 1), 2, Jmax + 1))
+                model_cache[k] = Array{BayesPM,2}(undef, size(X, 1), 2)
+                push!(model_cache, Array{BayesPM,2}(undef, size(X, 1), 2))
 
                 # Update the region indices
                 region_idx = @view idx[region_mask]

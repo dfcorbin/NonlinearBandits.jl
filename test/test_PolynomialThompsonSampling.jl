@@ -15,7 +15,5 @@ run!(num_batches, batch_size, driver; verbose=false)
 X1, y1 = arm_data(policy.data, 1)
 X2, y2 = arm_data(policy.data, 2)
 @test size(X1, 2) + size(X2, 2) == num_batches * batch_size
-@test policy.arms[1].models[1].J == 0
 @test abs(policy.arms[1].models[1].lm.β[1] - 10.0) < 0.1
-@test policy.arms[2].models[1].J == 0
 @test abs(policy.arms[2].models[1].lm.β[1] + 10.0) < 0.1

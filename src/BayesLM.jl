@@ -26,7 +26,7 @@ mutable struct BayesLM <: AbstractBayesianLM
     Σ::Hermitian{Float64,Matrix{Float64}}
     Λ::Hermitian{Float64,Matrix{Float64}}
 
-    function BayesLM(d::Int64; λ::Float64=1.0, shape0::Float64=1e-3, scale0::Float64=1e-3)
+    function BayesLM(d::Int64; λ::Float64=1.0, shape0::Float64=0.01, scale0::Float64=0.01)
         if d <= 0 || shape0 <= 0 || scale0 <= 0
             msg = "d, shape0 and scale0 must be strictly positive"
             throw(ArgumentError(msg))
@@ -46,7 +46,7 @@ function sherman_morrison_inv(Ainv::AbstractMatrix, u::AbstractMatrix, v::Abstra
         throw(DimensionMismatch("size of A does not match u/v"))
     end
     numer = Ainv * u * v' * Ainv
-    denom = 1.0 + (v' * Ainv * u)[1, 1]
+    denom = 1.0 + (v'*Ainv*u)[1, 1]
     return Ainv - numer / denom
 end
 
@@ -69,7 +69,7 @@ function fit!(lm::BayesLM, X::AbstractMatrix, y::AbstractMatrix)
     Σ = size(X, 2) == 1 ? Hermitian(sherman_morrison_inv(lm.Σ, X, X)) : inv(Λ)
     β = Σ * (X * y' + lm.Λ * lm.β)
     shape = lm.shape + size(y, 2) / 2
-    scale = lm.scale + 0.5 * (y * y' - β' * Λ * β + lm.β' * lm.Λ * lm.β)[1, 1]
+    scale = lm.scale + 0.5 * (y*y'-β'*Λ*β+lm.β'*lm.Λ*lm.β)[1, 1]
     return lm.shape, lm.scale, lm.β, lm.Σ, lm.Λ = shape, scale, β, Σ, Λ
 end
 

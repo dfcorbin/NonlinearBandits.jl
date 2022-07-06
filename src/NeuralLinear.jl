@@ -27,7 +27,7 @@ mutable struct NeuralEncoder{T1<:Chain,T2<:Function}
         enc = [Dense(d_in, layer_sizes[1], relu)]
         if length(layer_sizes) > 1
             for i in 2:length(layer_sizes)
-                push!(enc, Dense(layer_sizes[i - 1], layer_sizes[i], relu))
+                push!(enc, Dense(layer_sizes[i-1], layer_sizes[i], relu))
             end
         end
         nn = Chain(enc=gpu(Chain(enc...)), dec=gpu(Dense(layer_sizes[end], d_out)))
@@ -68,7 +68,7 @@ function fit!(
     epochs::Int64;
     batch_size::Int64=32,
     opt=ADAM(),
-    verbose::Bool=true,
+    verbose::Bool=true
 )
     check_regression_data(X, r)
     if length(a) != size(X, 2)
@@ -134,9 +134,9 @@ mutable struct NeuralLinear{T1<:NeuralEncoder,T2} <: AbstractPolicy
         opt=ADAM(),
         α::Float64=1.0,
         λ::Float64=1.0,
-        shape0::Float64=1e-3,
-        scale0::Float64=1e-3,
-        verbose_retrain::Bool=false,
+        shape0::Float64=0.01,
+        scale0::Float64=0.01,
+        verbose_retrain::Bool=false
     )
         arms = [BayesLM(layer_sizes[end], λ=λ, shape0=shape0, scale0=scale0) for a in 1:num_arms]
         enc = NeuralEncoder(d, num_arms, layer_sizes)
@@ -179,7 +179,7 @@ function update!(
     pol.t += size(X, 2)
     pol.batches += 1
     for i in unique(a)
-        Xa, ra = X[:, a .== i], r[:, a .== i]
+        Xa, ra = X[:, a.==i], r[:, a.==i]
         Za = pol.enc(Xa)
         pol.Xs[i] = hcat(pol.Xs[i], Xa)
         pol.Zs[i] = hcat(pol.Zs[i], Za)
@@ -202,7 +202,7 @@ function update!(
             pol.r,
             pol.epochs;
             opt=pol.opt,
-            verbose=pol.verbose_retrain,
+            verbose=pol.verbose_retrain
         )
         for i in 1:length(pol.arms)
             pol.Zs[i] = pol.enc(pol.Xs[i])
@@ -216,7 +216,7 @@ function update!(
             pol.arms[i].β = pol.arms[i].Σ * pol.Zs[i] * pol.rs[i]'
             pol.arms[i].shape = pol.arms[i].shape0 + size(pol.Zs[i], 2) / 2
             pol.arms[i].scale = pol.arms[i].scale0 + 0.5 * (
-                pol.rs[i] * pol.rs[i]' - pol.arms[i].β' * pol.arms[i].Λ * pol.arms[i].β
+                pol.rs[i]*pol.rs[i]'-pol.arms[i].β'*pol.arms[i].Λ*pol.arms[i].β
             )[1, 1]
         end
     end
