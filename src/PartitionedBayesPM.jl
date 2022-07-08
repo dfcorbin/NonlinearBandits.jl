@@ -268,7 +268,7 @@ function PartitionedBayesPM(
                 left_lims, right_lims = deepcopy(P.regions[k]), deepcopy(P.regions[k])
                 left_lims[d, 2], right_lims[d, 1] = loc, loc
                 left_region_mask = Xk[d, :] .< loc
-                if !(isassigned(basis_cache[k], d, 1) && isassigned(basis_cache[k], d, 2))
+                if !(isassigned(model_cache[k], d, 1) && isassigned(model_cache[k], d, 2))
                     model_cache[k][d, 1] = lasso_bayespm(
                         Xk[:, left_region_mask],
                         yk[:, left_region_mask],
