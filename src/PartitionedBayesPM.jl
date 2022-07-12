@@ -154,9 +154,14 @@ function lasso_bayespm(
     elseif Pmax == 1
         basis_idx = [1]
     else
-        path = @suppress glmnet(Z[2:end, :]', y[1, :]).betas
-        num_params = [sum(path[:, i] .!= 0) for i in 1:size(path, 2)]
-        coefs = path[:, findlast(num_params .<= Pmax - 1)]
+        local coefs
+        try
+            coefs = @suppress glmnet(Z[2:end, :]', y[1, :], pmax=Pmax - 1).betas[:, end]
+        catch
+            path = @suppress glmnet(Z[2:end, :]', y[1, :]).betas
+            num_params = [sum(path[:, i] .!= 0) for i in 1:size(path, 2)]
+            coefs = path[:, findlast(num_params .<= Pmax - 1)]
+        end
         basis_idx = collect(2:length(basis))[coefs.!=0]
         pushfirst!(basis_idx, 1)
     end

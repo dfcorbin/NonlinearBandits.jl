@@ -73,5 +73,5 @@ sequential_ppm = PartitionedBayesPM(P, [J, J])
 for i in 1:size(X, 2)
     fit!(sequential_ppm, X[:, i:i], y[:, i:i])
 end
-@test sequential_ppm.shape == 0.001 + size(X, 2) / 2
+@test sequential_ppm.shape == 0.01 + size(X, 2) / 2
 @test sequential_ppm.scale ≈ manual_pbpm.scale

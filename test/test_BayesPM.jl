@@ -35,7 +35,7 @@ d = 2
 basis = Index[Index([1], [2]), Index([1, 2], [1, 3])]
 limits = repeat([-1.0 1.0], d, 1)
 X = repeat(rand(d, 1), 1, 2)
-p = repeat([polys[2 + 1](X[1, 1]); polys[1 + 1](X[1, 1]) * polys[3 + 1](X[2, 1])], 1, 2)
+p = repeat([polys[2+1](X[1, 1]); polys[1+1](X[1, 1]) * polys[3+1](X[2, 1])], 1, 2)
 @test expand(X, basis, limits) ≈ p
 @test_throws(
     ArgumentError("X and limits don't match in their first dimension"),
@@ -60,7 +60,7 @@ nbas = length(basis)
 function f(x)
     z = reshape(x, (:, 1))
     z = expand(z, basis, limits; J=J)
-    return (β' * z)[1, 1]
+    return (β'*z)[1, 1]
 end
 
 X, y = NonlinearBandits.gaussian_data(d, n, f; σ=2)
@@ -68,7 +68,7 @@ pm = BayesPM(basis, limits; λ=200.0)
 fit!(pm, X, y)
 
 @test mae(pm.lm.β, β) < 1.0
-@test pm.lm.shape == 1e-3 + n / 2
+@test pm.lm.shape == 0.01 + n / 2
 @test isapprox(std(pm), 2; atol=0.5)
 x = [0.2, 0.4]
 @test isapprox(pm(hcat(x))[1, 1], f(x); atol=1.0)
