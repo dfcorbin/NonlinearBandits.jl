@@ -137,8 +137,7 @@ end
 function lasso_bayespm(
     X::Matrix{Float64},
     y::Matrix{Float64},
-    basis_cache::Vector{Vector{Index}},
-    min_obs::Vector{Float64},
+    basis::Vector{Index},
     limits::Matrix{Float64},
     λ::Float64,
     λ_intercept::Float64,
@@ -146,8 +145,6 @@ function lasso_bayespm(
     scale0::Float64,
     Pmax::Int64,
 )
-    b = findlast(size(X, 2) .>= min_obs)
-    basis = basis_cache[b]
     Z = expand(X, basis, limits)
     if length(basis) <= Pmax
         basis_idx = collect(1:length(basis))
@@ -165,9 +162,9 @@ function lasso_bayespm(
         basis_idx = collect(2:length(basis))[coefs.!=0]
         pushfirst!(basis_idx, 1)
     end
-    basis = basis[basis_idx]
+    sparse_basis = basis[basis_idx]
     Z = Z[basis_idx, :]
-    pm = BayesPM(basis, limits, λ=λ, shape0=shape0, scale0=scale0)
+    pm = BayesPM(sparse_basis, limits, λ=λ, shape0=shape0, scale0=scale0)
     pm.lm.Σ[1, 1] = pm.lm.Σ0[1, 1] = λ_intercept^2
     pm.lm.Λ[1, 1] = pm.lm.Λ0[1, 1] = 1 / λ_intercept^2
     if size(Z, 2) > 0
@@ -191,6 +188,75 @@ function evidence(models::Vector{BayesPM}, shape0::Float64, scale0::Float64)
 end
 
 vol(limits::Matrix{Float64}) = prod(limits[:, 2] - limits[:, 1])
+
+function choose_split_polys(
+    X::Matrix{Float64},
+    y::Matrix{Float64},
+    models::Vector{BayesPM},
+    k::Int64,
+    basis_cache::Vector{Vector{Index}},
+    model_cache::Vector{Array{BayesPM,3}},
+    space_vol::Float64,
+    λ::Float64,
+    shape0::Float64,
+    scale0::Float64,
+    Pmax::Int64,
+    min_obs::Vector{Float64},
+)
+    models_cp = deepcopy(models)
+    push!(models_cp, models_cp[1])
+    limits = models[k].limits
+    num_dims = size(X, 1)
+    bc = length(basis_cache)
+    best = Dict{String,Any}("ev" => -Inf)
+    for d in 1:num_dims
+        loc = sum(limits[d, :]) / 2
+        mask = X[d, :] .< loc
+        left_limits = deepcopy(limits)
+        right_limits = deepcopy(limits)
+        left_limits[d, 2] = right_limits[d, 1] = loc
+        for Jleft in 1:bc, Jright in 1:bc
+            if sum(mask) < min_obs[Jleft] || sum(.!mask) < min_obs[Jright]
+                continue
+            elseif !(isassigned(model_cache[k], 1, d, Jleft) && isassigned(model_cache[k], 2, d, Jright))
+                println(sum(mask), "length models = ", length(models_cp))
+                model_cache[k][1, d, Jleft] = lasso_bayespm(
+                    X[:, mask],
+                    y[:, mask],
+                    basis_cache[Jleft],
+                    left_limits,
+                    λ,
+                    λ * vol(left_limits) / space_vol,
+                    shape0,
+                    scale0,
+                    Pmax,
+                )
+                model_cache[k][2, d, Jright] = lasso_bayespm(
+                    X[:, .!mask],
+                    y[:, .!mask],
+                    basis_cache[Jright],
+                    right_limits,
+                    λ,
+                    λ * vol(right_limits) / space_vol,
+                    shape0,
+                    scale0,
+                    Pmax,
+                )
+            end
+            models_cp[k] = model_cache[k][1, d, Jleft]
+            models_cp[end] = model_cache[k][2, d, Jright]
+            ev = evidence(models_cp, shape0, scale0)
+            if ev > best["ev"]
+                best["left_pm"] = models[k]
+                best["right_pm"] = models[end]
+                best["d"] = d
+                best["ev"] = ev
+                best["mask"] = mask
+            end
+        end
+    end
+    return best
+end
 
 """
     PartitionedBayesPM(X::AbstractMatrix, y::AbstractMatrix, limits::Matrix{Float64};
@@ -238,14 +304,25 @@ function PartitionedBayesPM(
 
     P = Partition(limits)
     idx = ones(Int64, size(X, 2))
-    model_cache = [Array{BayesPM,2}(undef, size(X, 1), 2)]
+    model_cache = [Array{BayesPM,3}(undef, 2, size(X, 1), Jmax + 1)]
     basis_cache = [tpbasis(size(X, 1), J) for J in 0:Jmax]
-    models = Vector{BayesPM}(undef, 1)
     space_vol = vol(limits)
 
     min_obs = [length(b) * ratio for b in basis_cache]
     min_obs[1] = 0
-    models[1] = lasso_bayespm(X, y, basis_cache, min_obs, limits, λ, λ, shape0, scale0, Pmax)
+    models = [
+        lasso_bayespm(
+            X,
+            y,
+            basis_cache[findlast(size(X, 2) .>= min_obs)],
+            limits,
+            λ,
+            λ,
+            shape0,
+            scale0,
+            Pmax
+        )
+    ]
     ev = evidence(models, shape0, scale0)
 
     while length(models) < Kmax
@@ -253,73 +330,32 @@ function PartitionedBayesPM(
         accepted = false
         K = length(models)
         for k in randperm(K)
-            # Iterate over every subregion and test to see if any split
-            # improves the model evidence beyond the tolerance.
             count += 1
-            best = Dict{String,Any}("ev" => ev + tol)
-            models_cp = deepcopy(models)
-            push!(models_cp, models_cp[1])
             region_mask = idx .== k
             Xk, yk = X[:, region_mask], y[:, region_mask]
-            for d in 1:size(X, 1)
-                # Region k is split in every dimension and two polynomials are fitted
-                # to the resulting subregions. The best details of the best dimensional
-                # split are stored in the dictionary `best`
-                if verbose
-                    msg = "\rRegion = $count/$K; Dimension = $d/$(size(X, 1)); Evidence = $ev"
-                    print(msg)
-                end
-                loc = sum(P.regions[k][d, :]) / 2
-                left_lims, right_lims = deepcopy(P.regions[k]), deepcopy(P.regions[k])
-                left_lims[d, 2], right_lims[d, 1] = loc, loc
-                left_region_mask = Xk[d, :] .< loc
-                if !(isassigned(model_cache[k], d, 1) && isassigned(model_cache[k], d, 2))
-                    model_cache[k][d, 1] = lasso_bayespm(
-                        Xk[:, left_region_mask],
-                        yk[:, left_region_mask],
-                        basis_cache,
-                        min_obs,
-                        left_lims,
-                        λ,
-                        λ * vol(left_lims) / space_vol,
-                        shape0,
-                        scale0,
-                        Pmax,
-                    )
-                    model_cache[k][d, 2] = lasso_bayespm(
-                        Xk[:, .!left_region_mask],
-                        yk[:, .!left_region_mask],
-                        basis_cache,
-                        min_obs,
-                        right_lims,
-                        λ,
-                        λ * vol(right_lims) / space_vol,
-                        shape0,
-                        scale0,
-                        Pmax
-                    )
-                end
-                models_cp[k], models_cp[end] = model_cache[k][d, 1], model_cache[k][d, 2]
-                tmp_ev = evidence(models_cp, shape0, scale0)
-                if tmp_ev > best["ev"] >= ev + tol
-                    accepted = true
-                    best["ev"] = tmp_ev
-                    best["d"] = d
-                    best["left_region_mask"] = left_region_mask
-                    best["left_pm"], best["right_pm"] = model_cache[k][d, 1], model_cache[k][d, 2]
-                end
-            end
-            if accepted
-                # Update models and reset cache for k'th region. Add extra 
-                # cache entry for the additional region.
+            best = choose_split_polys(
+                Xk,
+                yk,
+                models,
+                k,
+                basis_cache,
+                model_cache,
+                space_vol,
+                λ,
+                shape0,
+                scale0,
+                Pmax,
+                min_obs
+            )
+            if best["ev"] > ev + tol
                 models[k] = best["left_pm"]::BayesPM
                 push!(models, best["right_pm"]::BayesPM)
-                model_cache[k] = Array{BayesPM,2}(undef, size(X, 1), 2)
-                push!(model_cache, Array{BayesPM,2}(undef, size(X, 1), 2))
+                model_cache[k] = Array{BayesPM,3}(undef, 2, size(X, 1), Jmax + 1)
+                push!(model_cache, Array{BayesPM,3}(undef, 2, size(X, 1), Jmax + 1))
 
                 # Update the region indices
                 region_idx = @view idx[region_mask]
-                region_idx[.!best["left_region_mask"]::BitVector] .= length(models)
+                region_idx[.!best["mask"]::BitVector] .= length(models)
 
                 split!(P, k, best["d"]::Int64)
                 ev = best["ev"]::Float64
