@@ -1,5 +1,5 @@
 function test_LinearModel()
-    n, d = 1000, 2
+    n, d = 5000, 2
     coefs = rand(Normal(0, 1), d)
     f(x) = coefs' * x
     sd = 0.1
