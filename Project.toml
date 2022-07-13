@@ -16,7 +16,7 @@ Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 [compat]
 CUDA = "3"
 Distributions = "0.25"
-Flux = "0.12"
+Flux = "0.12, 0.13"
 GLMNet = "0.7"
 SpecialFunctions = "2"
 Suppressor = "0.2"
