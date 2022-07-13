@@ -18,3 +18,8 @@ end
 @testset "PolyModel" begin
     include("test_PolyModel.jl")
 end
+
+
+@testset "PartitionedPolyModel" begin
+    include("test_PartitionedPolyModel.jl")
+end

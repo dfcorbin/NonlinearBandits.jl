@@ -4,6 +4,7 @@ using LinearAlgebra: cholesky, diagm, Symmetric
 
 include("LinearModel.jl")
 include("PolyModel.jl")
+include("PartitionedPolyModel.jl")
 
 export
     expand,
@@ -16,7 +17,11 @@ export
     legendre_next,
     tensor_product_basis,
     LinearModel,
+    locate,
+    Partition,
     PolyModel,
+    Region,
+    split!,
     variance
 
 end
