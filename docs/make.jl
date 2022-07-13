@@ -13,13 +13,11 @@ makedocs(;
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
         canonical="https://dfcorbin.github.io/NonlinearBandits.jl",
-        assets=String[],
+        assets=String[]
     ),
     pages=[
         "Introduction" => "index.md",
-        "Tutorials" => ["Bandits Tutorial" => "bandit_tutorial.md"],
-        "API" => ["Bandits" => "bandits_api.md", "Models" => "model_api.md"],
-    ],
+    ]
 )
 
 deploydocs(; repo="github.com/dfcorbin/NonlinearBandits.jl", devbranch="main")
