@@ -2,6 +2,7 @@ module NonlinearBandits
 
 using GLMNet: glmnet
 using LinearAlgebra: cholesky, diagm, logdet, Symmetric
+using Random: randperm
 using SpecialFunctions: loggamma
 using Suppressor: @suppress
 
@@ -21,6 +22,7 @@ export expand,
     LinearModel,
     locate,
     Partition,
+    PartitionedPolyModel,
     PolyModel,
     Region,
     split!,

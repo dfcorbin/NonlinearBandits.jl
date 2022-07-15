@@ -56,7 +56,7 @@ function test_sparse_polymodel()
 end
 
 
-function test_maximise_evidence()
+function test_PartitionedPolyModel()
     d = 2
     degrees = [2, 5]
     bases = [tensor_product_basis(d, deg) for deg in degrees]
@@ -108,13 +108,21 @@ function test_maximise_evidence()
         0.01,
         0.01,
         1.0,
+        1.0,
     )
     @test best["d"] == 2
     @test best["left_pm"].basis == bases[1]
     @test best["right_pm"].basis == bases[2]
-end
 
+
+    ppm = PartitionedPolyModel(X, y, limits, max_param = 1000, verbose = false)
+    @test length(ppm.polys) == 2
+    @test ppm.polys[1].degree == degrees[1]
+    @test ppm.polys[2].degree == degrees[2]
+    @test ppm.prt.regions[1].limits == left_limits
+    @test ppm.prt.regions[2].limits == right_limits
+end
 
 test_Partition()
 test_sparse_polymodel()
-test_maximise_evidence()
+test_PartitionedPolyModel()

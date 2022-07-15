@@ -133,6 +133,7 @@ function _maximise_evidence!(
     prior_shape::Float64,
     prior_scale::Float64,
     regularization::Float64,
+    space_vol::Float64,
 )
     num_dims = size(X, 2)
     limits = models[k].limits
@@ -162,7 +163,7 @@ function _maximise_evidence!(
                     max_param,
                     prior_shape,
                     prior_scale,
-                    regularization * 2,
+                    regularization * space_vol / vol(left_limits),
                     regularization,
                 )
                 model_cache[k][2, d, jr+1] = _sparse_polymodel(
@@ -173,21 +174,131 @@ function _maximise_evidence!(
                     max_param,
                     prior_shape,
                     prior_scale,
-                    regularization * 2,
+                    regularization * space_vol / vol(right_limits),
                     regularization,
                 )
             end
             models_cp[k] = model_cache[k][1, d, jl+1]
             models_cp[end] = model_cache[k][2, d, jr+1]
             ev = evidence(models_cp, prior_shape, prior_scale)
-            # println("jl = $jl, jr = $jr, d = $d, ev = $ev")
             if ev > best["evidence"]
                 best["evidence"] = ev
                 best["left_pm"] = models_cp[k]
                 best["right_pm"] = models_cp[end]
+                best["mask"] = mask
                 best["d"] = d
             end
         end
     end
     return best
+end
+
+
+function vol(limits::Matrix{Float64})
+    return prod(limits[:, 2] .- limits[:, 1])
+end
+
+
+mutable struct PartitionedPolyModel
+    polys::Vector{PolyModel}
+    prt::Partition
+    prior_shape::Float64
+    prior_scale::Float64
+end
+
+
+function PartitionedPolyModel(
+    X::Matrix{Float64},
+    y::Vector{Float64},
+    limits::Matrix{Float64};
+    max_degree::Int64 = 5,
+    max_param::Int64 = 15,
+    max_models::Int64 = 200,
+    data_constraint::Float64 = 1.0,
+    prior_shape::Float64 = 0.01,
+    prior_scale::Float64 = 0.01,
+    regularization::Float64 = 1.0,
+    tolerance::Float64 = 1e-3,
+    verbose::Bool = true,
+)
+    # Initial setup
+    n, d = size(X)
+    basis_cache = [tensor_product_basis(d, deg) for deg = 0:max_degree]
+    min_obs = [length(b) * data_constraint for b in basis_cache]
+    min_obs[1] = 0
+    models = [
+        _sparse_polymodel(
+            X,
+            y,
+            limits,
+            basis_cache[findlast(n .>= min_obs)],
+            max_param,
+            prior_shape,
+            prior_scale,
+            regularization,
+            regularization,
+        ),
+    ]
+    ev = evidence(models, prior_shape, prior_scale)
+    model_cache = [Array{PolyModel,3}(undef, 2, d, max_degree + 1)]
+    locations = ones(Int64, n)
+    space_vol = vol(limits)
+    prt = Partition(limits)
+
+    while length(models) < max_models
+        accepted = false
+        for k in randperm(length(max_models))
+            mask = locations .== k
+            best = _maximise_evidence!(
+                X[mask, :],
+                y[mask],
+                k,
+                models,
+                max_degree,
+                min_obs,
+                model_cache,
+                basis_cache,
+                max_param,
+                prior_shape,
+                prior_scale,
+                regularization,
+                space_vol,
+            )
+            if best["evidence"] > ev + tolerance
+                ev = best["evidence"]
+                models[k] = best["left_pm"]
+                push!(models, best["right_pm"])
+                split!(prt, k, best["d"])
+                region_locations = @view locations[mask]
+                region_locations[.!best["mask"]] .= length(models)
+                model_cache[k] = Array{PolyModel,3}(undef, 2, d, max_degree + 1)
+                push!(model_cache, Array{PolyModel,3}(undef, 2, d, max_degree + 1))
+                accepted = true
+            end
+        end
+        if !accepted
+            break
+        end
+    end
+    return PartitionedPolyModel(models, prt, prior_shape, prior_scale)
+end
+
+
+function (ppm::PartitionedPolyModel)(X::Matrix{Float64})
+    locations = locate(ppm.prt, X)
+    y = zeros(size(X, 1))
+    for k in unique(locations)
+        mask = locations .== k
+        y[mask] = ppm.polys[k](X[mask, :])
+    end
+    return y
+end
+
+
+function fit!(ppm::PartitionedPolyModel, X::Matrix{Float64}, y::Vector{Float64})
+    locations = locate(ppm.prt, X)
+    for k in unique(locations)
+        mask = locations .== k
+        fit!(ppm.polys[k], X[mask, :], y[mask])
+    end
 end
