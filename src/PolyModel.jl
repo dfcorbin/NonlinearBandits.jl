@@ -31,7 +31,7 @@ function _fill_tpbasis!(
     end
 
     # Append the current basis function with every remaining j.
-    for j in 0:degree
+    for j = 0:degree
         dims_cp, degrees_cp = deepcopy(dims), deepcopy(degrees)
         if j > 0
             push!(dims_cp, d)
@@ -54,7 +54,7 @@ function expand(
     X::AbstractMatrix,
     limits::Matrix{Float64},
     basis::Vector{Index},
-    degree=nothing
+    degree = nothing,
 )
     if size(limits) != (size(X, 2), 2)
         throw(ArgumentError("limits has incorrect size"))
@@ -65,12 +65,12 @@ function expand(
     num_bfuns = length(basis)
     Z = ones(n, num_bfuns)
     U = ones(d, degree + 1)
-    for i in 1:n
+    for i = 1:n
         # Univariate expansions
-        for l in 1:d
+        for l = 1:d
             p1 = p0 = 1.0
             x = (2 * X[i, l] - limits[l, 1] - limits[l, 2]) / (limits[l, 2] - limits[l, 1])
-            for j in 0:degree
+            for j = 0:degree
                 U[l, j+1] = legendre_next(x, j, p1, p0)
                 p0 = p1
                 p1 = U[l, j+1]
@@ -78,7 +78,7 @@ function expand(
         end
 
         # Mulitplicative combinations
-        for b in 1:num_bfuns
+        for b = 1:num_bfuns
             for (dim, deg) in zip(basis[b].dims, basis[b].degrees)
                 Z[i, b] *= U[dim, deg+1]
             end
@@ -99,15 +99,15 @@ end
 function PolyModel(
     limits::Matrix{Float64},
     basis::Vector{Index};
-    prior_shape::Float64=0.01,
-    prior_scale::Float64=0.01,
-    regularization::Float64=1.0
+    prior_shape::Float64 = 0.01,
+    prior_scale::Float64 = 0.01,
+    regularization::Float64 = 1.0,
 )
     lm = LinearModel(
         length(basis),
-        prior_shape=prior_shape,
-        prior_scale=prior_scale,
-        regularization=regularization
+        prior_shape = prior_shape,
+        prior_scale = prior_scale,
+        regularization = regularization,
     )
     degree = maximum(max_degree.(basis))
     return PolyModel(limits, degree, basis, lm)
@@ -129,6 +129,16 @@ function get_scale(pm::PolyModel)
 end
 
 
+function get_prec(pm::PolyModel)
+    return get_prec(pm.lm)
+end
+
+
+function get_prior_prec(pm::PolyModel)
+    return get_prior_prec(pm.lm)
+end
+
+
 function fit!(pm::PolyModel, X::Matrix{Float64}, y::Vector{Float64})
     Z = expand(X, pm.limits, pm.basis, pm.degree)
     fit!(pm.lm, Z, y)
@@ -144,7 +154,5 @@ end
 
 
 function variance(pm::PolyModel)
-    shape = get_shape(pm.lm)
-    scale = get_scale(pm.lm)
-    return scale / (shape - 1)
+    return variance(pm.lm)
 end

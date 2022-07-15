@@ -14,9 +14,9 @@ end
 
 function LinearModel(
     d::Int64;
-    prior_shape::Float64=0.01,
-    prior_scale::Float64=0.01,
-    regularization::Float64=1.0
+    prior_shape::Float64 = 0.01,
+    prior_scale::Float64 = 0.01,
+    regularization::Float64 = 1.0,
 )
     coefs = zeros(d)
     prec = Symmetric(diagm(fill(regularization, d)))
@@ -43,6 +43,11 @@ end
 
 function get_prec(lm::LinearModel)
     return lm.post.prec
+end
+
+
+function get_prior_prec(lm::LinearModel)
+    return lm.prior.prec
 end
 
 

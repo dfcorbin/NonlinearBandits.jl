@@ -1,13 +1,15 @@
 module NonlinearBandits
 
-using LinearAlgebra: cholesky, diagm, Symmetric
+using GLMNet: glmnet
+using LinearAlgebra: cholesky, diagm, logdet, Symmetric
+using SpecialFunctions: loggamma
+using Suppressor: @suppress
 
 include("LinearModel.jl")
 include("PolyModel.jl")
 include("PartitionedPolyModel.jl")
 
-export
-    expand,
+export expand,
     fit!,
     get_coefs,
     get_scale,
