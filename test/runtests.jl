@@ -24,3 +24,23 @@ end
 @testset "PartitionedPolyModel" begin
     include("test_PartitionedPolyModel.jl")
 end
+
+
+@testset "Contexts" begin
+    include("test_contexts.jl")
+end
+
+
+@testset "Rewards" begin
+    include("test_rewards.jl")
+end
+
+
+@testset "Metrics" begin
+    include("test_metrics.jl")
+end
+
+
+@testset "Drivers" begin
+    include("test_drivers.jl")
+end

@@ -301,4 +301,5 @@ function fit!(ppm::PartitionedPolyModel, X::Matrix{Float64}, y::Vector{Float64})
         mask = locations .== k
         fit!(ppm.polys[k], X[mask, :], y[mask])
     end
+    return nothing
 end
