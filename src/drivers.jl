@@ -28,11 +28,12 @@ mutable struct StandardDriver{
     T1<:AbstractContextSampler,
     T2<:AbstractRewardSampler,
     T3<:AbstractPolicy,
+    T4<:Tuple{Vararg{<:AbstractMetric}},
 } <: AbstractDriver
     csampler::T1
     policy::T3
     rsampler::T2
-    metrics::Vector{AbstractMetric}
+    metrics::T4
 end
 
 
@@ -41,7 +42,7 @@ function StandardDriver(
     policy::AbstractPolicy,
     rsampler::AbstractRewardSampler,
 )
-    return StandardDriver(csampler, policy, rsampler, AbstractMetric[])
+    return StandardDriver(csampler, policy, rsampler, ())
 end
 
 
@@ -60,12 +61,14 @@ mutable struct LatentDriver{
     T1<:AbstractContextSampler,
     T2<:AbstractRewardSampler,
     T3<:AbstractPolicy,
+    T4<:Function,
+    T5<:Tuple{Vararg{<:AbstractMetric}},
 } <: AbstractDriver
     csampler::T1
     policy::T3
     rsampler::T2
-    tform::Function
-    metrics::Vector{AbstractMetric}
+    tform::T4
+    metrics::T5
 end
 
 

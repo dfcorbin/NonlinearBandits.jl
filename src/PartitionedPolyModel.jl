@@ -303,3 +303,51 @@ function fit!(ppm::PartitionedPolyModel, X::Matrix{Float64}, y::Vector{Float64})
     end
     return nothing
 end
+
+
+function get_shape(ppm::PartitionedPolyModel)
+    shape = ppm.prior_shape
+    for pm in ppm.polys
+        shape += get_shape(pm) - ppm.prior_shape
+    end
+    return shape
+end
+
+
+function get_scale(ppm::PartitionedPolyModel)
+    scale = ppm.prior_scale
+    for pm in ppm.polys
+        scale += get_scale(pm) - ppm.prior_scale
+    end
+    return scale
+end
+
+
+function get_coefs(ppm::PartitionedPolyModel, k::Int64)
+    return get_coefs(ppm.polys[k])
+end
+
+
+function get_prec(ppm::PartitionedPolyModel, k::Int64)
+    return get_prec(ppm.polys[k])
+end
+
+
+function get_partition(ppm::PartitionedPolyModel)
+    return ppm.prt
+end
+
+
+function get_region_limits(ppm::PartitionedPolyModel, k::Int64)
+    return ppm.polys[k].limits
+end
+
+
+function get_basis(ppm::PartitionedPolyModel, k::Int64)
+    return get_basis(ppm.polys[k])
+end
+
+
+function get_degree(ppm::PartitionedPolyModel, k::Int64)
+    return get_degree(ppm.polys[k])
+end

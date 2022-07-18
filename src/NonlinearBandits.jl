@@ -1,6 +1,6 @@
 module NonlinearBandits
 
-using Distributions: Uniform, Normal
+using Distributions: InverseGamma, MvNormalCanon, Normal, Uniform
 using GLMNet: glmnet
 using LinearAlgebra: cholesky, diagm, logdet, Symmetric
 using Random: randperm
@@ -14,6 +14,7 @@ include("contexts.jl")
 include("rewards.jl")
 include("metrics.jl")
 include("drivers.jl")
+include("PolynomialThompsonSampling.jl")
 
 export AbstractContextSampler,
     AbstractDriver,
@@ -39,6 +40,8 @@ export AbstractContextSampler,
     Partition,
     PartitionedPolyModel,
     PolyModel,
+    PolynomialThompsonSampling,
+    predict,
     Region,
     run!,
     split!,
@@ -46,6 +49,7 @@ export AbstractContextSampler,
     tensor_product_basis,
     UniformContexts,
     UniformPolicy,
+    update!,
     variance,
     WheelContexts,
     WheelRewards,

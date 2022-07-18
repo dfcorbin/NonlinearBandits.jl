@@ -156,3 +156,13 @@ end
 function variance(pm::PolyModel)
     return variance(pm.lm)
 end
+
+
+function get_basis(pm::PolyModel)
+    return pm.basis
+end
+
+
+function get_degree(pm::PolyModel)
+    return pm.degree
+end

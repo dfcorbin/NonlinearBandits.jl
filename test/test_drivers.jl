@@ -1,11 +1,11 @@
-function test_standard_driver()
+function test_StandardDriver()
     d, batch_size = 5, 100
     limits = repeat([-1.0 1.0], d, 1)
     mf = (x -> 100, x -> -100)
     csampler = UniformContexts(limits)
     policy = UniformPolicy(length(mf))
     rsampler = GaussianRewards(mf, 1.0)
-    metrics = AbstractMetric[FunctionalRegret(mf)]
+    metrics = (FunctionalRegret(mf),)
     driver = StandardDriver(csampler, policy, rsampler, metrics)
 
     X, actions, rewards = driver(batch_size)
@@ -23,14 +23,17 @@ function test_standard_driver()
 end
 
 
-test_standard_driver()
+function test_LatentDriver()
+    mf = (x -> 100, x -> -100)
+    csampler = UniformContexts([-1.0 1.0])
+    policy = UniformPolicy(length(mf))
+    rsampler = GaussianRewards(mf, 1.0)
+    tform = z -> 100 + z[1]
+    driver = LatentDriver(csampler, policy, rsampler, tform)
+    X, actions, rewards = driver(1)
+    @test 99 <= X[1, 1] <= 101
+end
 
 
-# FIX TEST ERRORS
-# GO BACK TO USING VARARG TUPLES
-
-# # Test latent driver
-# tform = z -> 100 + z[1]
-# driver = LatentDriver(csampler, policy, rsampler, tform)
-# X, a, r = driver(1)
-# @test 99 <= X[1, 1] <= 101
+test_StandardDriver()
+test_LatentDriver()
