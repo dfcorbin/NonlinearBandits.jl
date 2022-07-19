@@ -190,7 +190,11 @@ function _maximise_evidence!(
             end
         end
     end
-    return best
+    if best["evidence"] == -Inf
+        return nothing
+    else
+        return best
+    end
 end
 
 
@@ -264,6 +268,9 @@ function PartitionedPolyModel(
                 regularization,
                 space_vol,
             )
+            if isnothing(best)
+                continue
+            end
             if best["evidence"] > ev + tolerance
                 ev = best["evidence"]
                 models[k] = best["left_pm"]

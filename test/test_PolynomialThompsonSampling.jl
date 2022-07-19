@@ -1,7 +1,7 @@
 function test_truncate_batch()
     limits = [0.0 1.0; -1.0 0.0]
-    truncated = NonlinearBandits.truncate_batch(limits, [-1.0 0.5; -0.5 1.0])
-    @test truncated == [0.0 0.5; -0.5 0.0]
+    truncated = NonlinearBandits.truncate_batch(limits, [-1.0 -0.5; 0.5 0.5])
+    @test truncated == [0.0 -0.5; 0.5 0.0]
 end
 
 

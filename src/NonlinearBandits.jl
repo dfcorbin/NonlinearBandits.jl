@@ -1,6 +1,7 @@
 module NonlinearBandits
 
 using Distributions: InverseGamma, MvNormalCanon, Normal, Uniform
+using Flux: ADAM, Chain, cpu, DataLoader, Dense, gpu, params, relu, train!
 using GLMNet: glmnet
 using LinearAlgebra: cholesky, diagm, logdet, Symmetric
 using Random: randperm
@@ -16,6 +17,7 @@ include("metrics.jl")
 include("drivers.jl")
 include("PolynomialThompsonSampling.jl")
 include("NearestNeighboursUCB.jl")
+include("NeuralLinear.jl")
 
 export AbstractContextSampler,
     AbstractDriver,
@@ -39,6 +41,8 @@ export AbstractContextSampler,
     LinearModel,
     locate,
     NearestNeighboursUCB,
+    NeuralEncoder,
+    NeuralLinear,
     Partition,
     PartitionedPolyModel,
     PolyModel,

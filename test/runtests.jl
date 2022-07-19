@@ -1,5 +1,6 @@
 import Base: ==
 using Distributions: Normal
+using Flux: cpu, gpu
 using NonlinearBandits
 using Test
 
@@ -53,4 +54,9 @@ end
 
 @testset "NearestNeighboursUCB" begin
     include("test_NearestNeighboursUCB.jl")
+end
+
+
+@testset "NeuralLinear" begin
+    include("test_NeuralLinear.jl")
 end
