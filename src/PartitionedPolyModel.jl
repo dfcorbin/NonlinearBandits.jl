@@ -55,7 +55,7 @@ function locate(region::Region, x::AbstractVector)
 end
 
 
-function locate(prt::Partition, X::Matrix{Float64})
+function locate(prt::Partition, X::AbstractMatrix)
     return [locate(prt.space, x) for x in eachrow(X)]
 end
 
@@ -214,6 +214,7 @@ function PartitionedPolyModel(
     max_degree::Int64 = 5,
     max_param::Int64 = 15,
     max_models::Int64 = 200,
+    min_data::Int64 = 2,
     data_constraint::Float64 = 1.0,
     prior_shape::Float64 = 0.01,
     prior_scale::Float64 = 0.01,
@@ -224,8 +225,7 @@ function PartitionedPolyModel(
     # Initial setup
     n, d = size(X)
     basis_cache = [tensor_product_basis(d, deg) for deg = 0:max_degree]
-    min_obs = [length(b) * data_constraint for b in basis_cache]
-    min_obs[1] = 0
+    min_obs = [max(min_data, length(b) * data_constraint) for b in basis_cache]
     models = [
         _sparse_polymodel(
             X,
@@ -247,7 +247,7 @@ function PartitionedPolyModel(
 
     while length(models) < max_models
         accepted = false
-        for k in randperm(length(max_models))
+        for k in randperm(length(models))
             mask = locations .== k
             best = _maximise_evidence!(
                 X[mask, :],
@@ -350,4 +350,15 @@ end
 
 function get_degree(ppm::PartitionedPolyModel, k::Int64)
     return get_degree(ppm.polys[k])
+end
+
+
+function posterior_sample(
+    ppm::PartitionedPolyModel,
+    x::AbstractVector,
+    inflation::Float64 = 1.0,
+)
+    x1 = reshape(x, (1, :))
+    k = locate(ppm.prt, x1)[1]
+    return posterior_sample(ppm.polys[k], x, inflation)
 end

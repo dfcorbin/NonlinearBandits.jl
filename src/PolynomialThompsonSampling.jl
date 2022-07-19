@@ -1,9 +1,9 @@
 function truncate_batch(limits::Matrix{Float64}, X::AbstractMatrix)
     X1 = deepcopy(X)
-    d, n = size(X1)
+    n, d = size(X1)
     for i = 1:n, j = 1:d
-        X1[j, i] = max(limits[j, 1], X1[j, i])
-        X1[j, i] = min(limits[j, 2], X1[j, i])
+        X1[i, j] = max(limits[j, 1], X1[i, j])
+        X1[i, j] = min(limits[j, 2], X1[i, j])
     end
     return X1
 end
@@ -25,6 +25,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
     max_degree::Int64
     max_param::Int64
     max_models::Int64
+    min_data::Int64
     regularization::Float64
     prior_shape::Float64
     prior_scale::Float64
@@ -41,6 +42,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
         max_degree::Int64 = 5,
         max_param::Int64 = 15,
         max_models::Int64 = 200,
+        min_data::Int64 = 2,
         regularization::Float64 = 1.0,
         prior_shape::Float64 = 0.01,
         prior_scale::Float64 = 0.01,
@@ -69,6 +71,7 @@ mutable struct PolynomialThompsonSampling <: AbstractPolicy
             max_degree,
             max_param,
             max_models,
+            min_data,
             regularization,
             prior_shape,
             prior_scale,
@@ -97,22 +100,7 @@ function (pol::PolynomialThompsonSampling)(X::Matrix{Float64})
     thompson_samples = Vector{Float64}(undef, num_arms)
     for i = 1:n
         for a = 1:num_arms
-            ppm = pol.arms[a]
-            shape = get_shape(ppm)
-            scale = get_scale(ppm)
-            x = X1[i:i, :]
-            k = locate(get_partition(ppm), x)[1]
-            varsim = rand(InverseGamma(shape, scale))
-            coefs = get_coefs(ppm, k)
-            prec = get_prec(ppm, k) ./ (pol.inflation * varsim)
-            coefs_sim = rand(MvNormalCanon(prec * coefs, prec))
-            z = expand(
-                x,
-                get_region_limits(pol.arms[a], k),
-                get_basis(pol.arms[a], k),
-                get_degree(ppm, k),
-            )
-            thompson_samples[a] = coefs_sim' * z[1, :]
+            thompson_samples[a] = posterior_sample(pol.arms[a], X1[i, :], pol.inflation)
         end
         actions[i] = argmax(thompson_samples)
     end
@@ -153,6 +141,7 @@ function update!(
                 max_degree = pol.max_degree,
                 max_param = pol.max_param,
                 max_models = pol.max_models,
+                min_data = pol.min_data,
                 data_constraint = pol.data_constraint,
                 prior_shape = pol.prior_shape,
                 prior_scale = pol.prior_scale,

@@ -15,6 +15,7 @@ include("rewards.jl")
 include("metrics.jl")
 include("drivers.jl")
 include("PolynomialThompsonSampling.jl")
+include("NearestNeighboursUCB.jl")
 
 export AbstractContextSampler,
     AbstractDriver,
@@ -37,10 +38,12 @@ export AbstractContextSampler,
     legendre_next,
     LinearModel,
     locate,
+    NearestNeighboursUCB,
     Partition,
     PartitionedPolyModel,
     PolyModel,
     PolynomialThompsonSampling,
+    posterior_sample,
     predict,
     Region,
     run!,

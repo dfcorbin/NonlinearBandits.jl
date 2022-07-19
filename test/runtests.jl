@@ -49,3 +49,8 @@ end
 @testset "PolynomialThompsonSampling" begin
     include("test_PolynomialThompsonSampling.jl")
 end
+
+
+@testset "NearestNeighboursUCB" begin
+    include("test_NearestNeighboursUCB.jl")
+end

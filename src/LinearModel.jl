@@ -77,3 +77,11 @@ end
 function (lm::LinearModel)(X::Matrix{Float64})
     return X * lm.post.coefs
 end
+
+
+function posterior_sample(lm::LinearModel, x::AbstractVector, inflation::Float64 = 1.0)
+    s2 = rand(InverseGamma(lm.post.shape, lm.post.scale))
+    prec = lm.post.prec / (s2 * inflation)
+    coefs = rand(MvNormalCanon(prec * lm.post.coefs, prec))
+    return coefs' * x
+end

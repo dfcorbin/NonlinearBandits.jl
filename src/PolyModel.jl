@@ -166,3 +166,10 @@ end
 function get_degree(pm::PolyModel)
     return pm.degree
 end
+
+
+function posterior_sample(pm::PolyModel, x::AbstractVector, inflation::Float64 = 1.0)
+    x = reshape(x, (1, :))
+    z = expand(x, pm.limits, pm.basis, pm.degree)[1, :]
+    return posterior_sample(pm.lm, z, inflation)
+end
