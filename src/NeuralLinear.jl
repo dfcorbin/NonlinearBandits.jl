@@ -49,14 +49,14 @@ end
 
 
 function (encoder::NeuralEncoder)(X::AbstractMatrix)
-    X1 = X' |> gpu
+    X1 = Matrix(X') |> gpu
     Z = encoder.network[:enc](X1) |> cpu
     return Matrix{Float64}(Z')
 end
 
 
 function predict(encoder::NeuralEncoder, X::AbstractMatrix)
-    X1 = X' |> gpu
+    X1 = Matrix(X') |> gpu
     Y = encoder.network(X1) |> cpu
     return Matrix{Float64}(Y')
 end
@@ -73,9 +73,9 @@ function fit!(
     verbose::Bool = true,
 )
 
-    X1 = X' |> gpu
+    X1 = Matrix(X') |> gpu
     A = output_matrix(actions, encoder.num_outputs) |> gpu
-    r = reshape(rewards, (1, :)) |> gpu
+    r = reshape(rewards, (1, :)) |> Matrix |> gpu
     data = DataLoader((X1, A, r), batchsize = batch_size, shuffle = true)
     for i = 1:num_epochs
         train!(encoder.loss, encoder.pars, data, opt)

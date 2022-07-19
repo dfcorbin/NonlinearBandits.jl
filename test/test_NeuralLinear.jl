@@ -1,6 +1,13 @@
+function test_output_matrix()
+    a = [1, 2]
+    A = NonlinearBandits.output_matrix(a, 2)
+    @test A == [1.0 0.0; 0.0 1.0]
+end
+
+
 function test_NeuralEncoder()
     num_inputs = 1
-    num_outputs = 3
+    num_outputs = 2
     layer_sizes = [32, 32]
     encoder = NeuralEncoder(num_inputs, num_outputs, layer_sizes)
     n = 2
@@ -19,64 +26,24 @@ function test_NeuralEncoder()
     @test loss ≈ ((Y[a[1], 1] - y[1])^2 + (Y[a[2], 2] - y[2])^2) / 2
 
     # Create some synthetic data
-    n = 1000
-    mean_funs = (x -> 3 * sin(2 * π * x[1]), x -> 3 * cos(2 * π * x[1]))
+    n = 5000
+    mean_funs = (x -> 5 * sin(2 * π * x[1]), x -> 5 * cos(2 * π * x[1]))
     X = rand(n, num_inputs)
     actions = rand(1:length(mean_funs), n)
     rewards = [mean_funs[a](x) + rand(Normal(0, 1)) for (a, x) in zip(actions, eachrow(X))]
-    fit!(encoder, X, actions, rewards, 10, verbose = false)
+    fit!(encoder, X, actions, rewards, 50, verbose = false)
+
+    x = rand(1, 1)
+    @test isapprox(
+        predict(encoder, x),
+        [mean_funs[1](x[1, 1]) mean_funs[2](x[1, 1])],
+        atol = 0.3,
+    )
 end
 
 
+test_output_matrix()
 test_NeuralEncoder()
-
-
-# function test_action_matrix()
-#     a = [1, 2]
-#     A = NonlinearBandits.action_matrix(a, 2)
-#     @test A == [1.0 0.0; 0.0 1.0]
-# end
-
-
-# function test_NeuralEncoder()
-#     n, d = 2, 5
-#     num_actions = 2
-#     layer_sizes = [64, 64]
-#     encoder = NeuralEncoder(d, num_actions, layer_sizes)
-#     X = rand(n, d)
-#     @test size(encoder(X)) == (n, layer_sizes[end])
-
-#     # Check loss function
-#     y = rand(n)
-#     Ypred = cpu(encoder.nn(gpu(X')))
-#     a = [2, 1]
-#     ls = (y[1] - Ypred[a[1], 1])^2 + (y[2] - Ypred[a[2], 2])^2
-#     ls /= 2
-#     A = NonlinearBandits.action_matrix(a, num_actions)
-#     @test encoder.loss(gpu(X'), gpu(A), gpu(reshape(y, (1, :)))) ≈ ls
-
-#     # Create bandit trajectory
-#     d, n = 2, 5000
-#     mf = (x -> 3 * x[1] + 5 * x[2], x -> 4 * x[1])
-#     X = rand(n, d)
-#     a = rand(1:2, n)
-#     r = zeros(n)
-#     for i = 1:n
-#         r[i] = mf[a[i]](X[i, :]) + rand(Normal(0, 0.1))
-#     end
-
-#     enc = NeuralEncoder(d, length(mf), [32, 32])
-#     fit!(enc, X, a, r, 20; verbose = false)
-#     # Ypred = cpu(enc.nn(gpu(X')))'
-#     # println(Ypred[1, 1:10])
-#     # println(mapslices(mf[1], X; dims = 2)[1:10, 1])
-#     # @test sum((Ypred[1, :] .- mapslices(mf[1], X; dims = 2)[:, 1]) .^ 2) / n < 0.01
-#     # @test sum((Ypred[2, :] .- mapslices(mf[2], X; dims = 2)[:, 1]) .^ 2) / n < 0.01
-# end
-
-
-# test_action_matrix()
-# test_NeuralEncoder()
 
 
 # # # Create bandit trajectory
