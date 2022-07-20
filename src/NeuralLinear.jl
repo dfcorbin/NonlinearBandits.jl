@@ -77,7 +77,8 @@ function fit!(
     X1 = Matrix(X') |> gpu
     A = output_matrix(actions, encoder.num_outputs) |> gpu
     r = reshape(rewards, (1, :)) |> Matrix |> gpu
-    data = DataLoader((X1, A, r), batchsize = batch_size, shuffle = true)
+    bs = min(size(X, 1), batch_size)
+    data = DataLoader((X1, A, r), batchsize = bs, shuffle = true)
     for i = 1:num_epochs
         train!(encoder.loss, encoder.pars, data, opt)
         if verbose
