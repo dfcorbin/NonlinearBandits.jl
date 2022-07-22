@@ -81,7 +81,7 @@ function _sparse_polymodel(
         try
             coefs = @suppress glmnet(Z[:, 2:end], y, pmax = max_param - 1).betas[:, end]
         catch
-            path = @suppress glmnet(Z[:, 2:end]', y).betas
+            path = @suppress glmnet(Z[:, 2:end], y).betas
             num_params = [sum(path[:, i] .!= 0) for i = 1:size(path, 2)]
             coefs = path[:, findlast(num_params .<= max_param - 1)]
         end
